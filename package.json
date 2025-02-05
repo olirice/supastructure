@@ -1,0 +1,29 @@
+{
+  "name": "peg",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "compile": "tsc",
+    "start": "npm run compile && node ./dist/index.js",
+    "dev": "nodemon --watch src --ext ts --exec \"npm run compile-and-run\"",
+    "compile-and-run": "tsc && node ./dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@apollo/server": "^4.11.3",
+    "graphql": "^16.10.0",
+    "graphql-tag": "^2.12.6",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.6",
+    "nodemon": "^3.1.9",
+    "typescript": "^5.7.3"
+  }
+}
