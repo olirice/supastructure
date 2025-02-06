@@ -9,5 +9,7 @@ export default {
       '^(\\.{1,2}/.*)\\.js$': '$1'
     },
     testMatch: ['**/tests/**/*.test.ts'], // Only run test files in `tests/`
-    modulePathIgnorePatterns: ['<rootDir>/dist/'] // Ignore compiled JS files
+    modulePathIgnorePatterns: ['<rootDir>/dist/'], // Ignore compiled JS files
+    maxWorkers: 4,
+    maxConcurrency: 20 // Run tests serially
   };

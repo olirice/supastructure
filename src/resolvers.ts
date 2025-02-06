@@ -22,34 +22,46 @@ import {
 
 export const resolvers = {
   Query: {
-    database: (_p: unknown, _a: unknown, ctx: ReqContext) => {
-      return {
-        oid: ctx.pg_database.oid,
-        name: ctx.pg_database.datname,
-      };
+    database: (
+      _p: unknown,
+      _a: unknown,
+      ctx: ReqContext
+    ): PgDatabase | null => {
+      return ctx.pg_database;
     },
 
     // single-entity queries for schema, table, etc.
-    schema: (_p: unknown, args: any, ctx: ReqContext) => {
+    schema: (
+      _p: unknown,
+      args: { schemaName?: string; id?: string; oid?: number },
+      ctx: ReqContext
+    ): PgNamespace | null => {
+      console.log("args", args);
+      console.log("ctx.pg_namespaces", ctx.pg_namespaces);
+
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Schema") {
+        console.log("in search by id");
         const matched = ctx.pg_namespaces.filter((s) => s.oid === fromId.oid);
         return singleResultOrError(matched, "Schema");
       }
       if (args.oid) {
+        console.log("in search by oid");
         const matched = ctx.pg_namespaces.filter((s) => s.oid === args.oid);
         return singleResultOrError(matched, "Schema");
       }
-      if (args.schemaName && args.name) {
+      if (args.schemaName) {
+        console.log("in search by name");
         const matched = ctx.pg_namespaces.filter(
-          (s) => s.nspname === args.schemaName && args.schemaName === args.name
+          (s) => s.nspname === args.schemaName
         );
+        console.log("asdf", matched);
         return singleResultOrError(matched, "Schema");
       }
       return null;
     },
 
-    table: (_p: unknown, args: any, ctx: ReqContext) => {
+    table: (_p: unknown, args: any, ctx: ReqContext): PgClass | null => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Table") {
         const matched = ctx.pg_classes.filter(
@@ -77,7 +89,7 @@ export const resolvers = {
       return null;
     },
 
-    view: (_p: unknown, args: any, ctx: ReqContext) => {
+    view: (_p: unknown, args: any, ctx: ReqContext): PgClass | null => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "View") {
         const matched = ctx.pg_classes.filter(
@@ -105,7 +117,11 @@ export const resolvers = {
       return null;
     },
 
-    materializedView: (_p: unknown, args: any, ctx: ReqContext) => {
+    materializedView: (
+      _p: unknown,
+      args: any,
+      ctx: ReqContext
+    ): PgClass | null => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "MaterializedView") {
         const matched = ctx.pg_classes.filter(
@@ -133,7 +149,7 @@ export const resolvers = {
       return null;
     },
 
-    index: (_p: unknown, args: any, ctx: ReqContext) => {
+    index: (_p: unknown, args: any, ctx: ReqContext): PgClass | null => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Index") {
         const matched = ctx.pg_classes.filter(
@@ -161,7 +177,7 @@ export const resolvers = {
       return null;
     },
 
-    trigger: (_p: unknown, args: any, ctx: ReqContext) => {
+    trigger: (_p: unknown, args: any, ctx: ReqContext): PgTrigger | null => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Trigger") {
         const matched = ctx.pg_triggers.filter((t) => t.oid === fromId.oid);
@@ -183,7 +199,7 @@ export const resolvers = {
       return null;
     },
 
-    policy: (_p: unknown, args: any, ctx: ReqContext) => {
+    policy: (_p: unknown, args: any, ctx: ReqContext): PgPolicy | null => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Policy") {
         const matched = ctx.pg_policies.filter((p) => p.oid === fromId.oid);
@@ -205,7 +221,7 @@ export const resolvers = {
       return null;
     },
 
-    type: (_p: unknown, args: any, ctx: ReqContext) => {
+    type: (_p: unknown, args: any, ctx: ReqContext): PgType | null => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "PgType") {
         const matched = ctx.pg_types.filter((t) => t.oid === fromId.oid);
@@ -234,7 +250,7 @@ export const resolvers = {
       return null;
     },
 
-    role: (_p: unknown, args: any, ctx: ReqContext) => {
+    role: (_p: unknown, args: any, ctx: ReqContext): PgRole | null => {
       // example single-result role lookup
       // if ID is specified:
       const fromId = args.id ? decodeId(args.id) : null;

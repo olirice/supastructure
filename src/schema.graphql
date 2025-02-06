@@ -22,7 +22,7 @@ type Query {
   database: Database!
 
   # single-entity queries
-  schema(oid: Int, schemaName: String, name: String, id: ID): Schema
+  schema(oid: Int, schemaName: String, id: ID): Schema
   table(oid: Int, schemaName: String, name: String, id: ID): Table
   view(oid: Int, schemaName: String, name: String, id: ID): View
   materializedView(
