@@ -36,26 +36,19 @@ export const resolvers = {
       args: { schemaName?: string; id?: string; oid?: number },
       ctx: ReqContext
     ): PgNamespace | null => {
-      console.log("args", args);
-      console.log("ctx.pg_namespaces", ctx.pg_namespaces);
-
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Schema") {
-        console.log("in search by id");
         const matched = ctx.pg_namespaces.filter((s) => s.oid === fromId.oid);
         return singleResultOrError(matched, "Schema");
       }
       if (args.oid) {
-        console.log("in search by oid");
         const matched = ctx.pg_namespaces.filter((s) => s.oid === args.oid);
         return singleResultOrError(matched, "Schema");
       }
       if (args.schemaName) {
-        console.log("in search by name");
         const matched = ctx.pg_namespaces.filter(
           (s) => s.nspname === args.schemaName
         );
-        console.log("asdf", matched);
         return singleResultOrError(matched, "Schema");
       }
       return null;
