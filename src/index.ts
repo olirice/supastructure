@@ -9,7 +9,7 @@ import { context, DbConfig, ReqContext } from './context.js';
 // Load environment variables
 config();
 
-const dbConfig: DbConfig = {
+export const dbConfig: DbConfig = {
   user: process.env.PG_USER || 'postgres',
   host: process.env.PG_HOST || 'localhost',
   database: process.env.PG_DATABASE || 'postgres',

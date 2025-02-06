@@ -4,16 +4,10 @@ import fs from 'fs';
 import { gql } from 'graphql-tag';
 import { resolvers } from '../src/resolvers.js';
 import { context, ReqContext, DbConfig } from '../src/context.js';
+import { dbConfig } from '../src/index.js';
 
 // Constants
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'postgres',
-  password: '',
-  port: 5435
-});
-const credsStub = { user: 'postgres', host: 'localhost', database: 'postgres', password: '', port: 5435 }
+const pool = new Pool(dbConfig);
 const typeDefs = gql(fs.readFileSync('src/schema.graphql', 'utf8'));
 
 
@@ -37,7 +31,7 @@ async function executeTestQuery(
       query,
       variables,
     },
-    { contextValue: await context(credsStub, client) }
+    { contextValue: await context(dbConfig, client) }
   );
 
   console.log('GraphQL Response:', response.body);
