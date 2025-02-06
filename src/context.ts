@@ -20,14 +20,16 @@ export interface ReqContext {
     pg_roles: PgRole[];
   }
 
+export interface DbConfig {
+  user: string;
+  host: string;
+  database: string;
+  password: string;
+  port: number;
+}
 
-export async function context(): Promise<ReqContext> {
-    const client = new pg.Client({
-      user: 'postgres',
-      host: 'localhost',
-      database: 'postgres',
-      port: 5435,
-    });
+export async function context(dbConfig: DbConfig): Promise<ReqContext> {
+    const client = new pg.Client(dbConfig);
     await client.connect();
     try {
       // database

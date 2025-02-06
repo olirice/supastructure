@@ -3,10 +3,15 @@
     "rootDirs": ["src"],
     "outDir": "dist",
     "lib": ["es2020"],
+    "baseUrl": "./",
     "target": "es2020",
-    "module": "esnext",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
-    "types": ["node"]
+    "strict": true,
+    "types": ["node", "jest"]
+  },
+  "ts-node": {
+    "esm": true // Enable ESM support for ts-node
   }
 }
