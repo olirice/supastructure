@@ -659,29 +659,38 @@ export const resolvers = {
       const ix = ctx.pg_index.find((x) => x.indexrelid === p.oid);
       return ix?.indexdef || null;
     },
-  },
+    },
 
-  Trigger: {
+    Trigger: {
     id: (p: PgTrigger) => buildGlobalId("Trigger", p.oid),
     oid: (p: PgTrigger) => p.oid,
     name: (p: PgTrigger) => p.tgname,
     table: (p: PgTrigger, _a: any, ctx: ReqContext) =>
       ctx.pg_classes.find((c) => c.oid === p.tgrelid) || null,
-  },
+    },
 
-  Policy: {
+    Policy: {
     id: (p: PgPolicy) => buildGlobalId("Policy", p.oid),
     oid: (p: PgPolicy) => p.oid,
     name: (p: PgPolicy) => p.polname,
     table: (p: PgPolicy, _a: any, ctx: ReqContext) =>
       ctx.pg_classes.find((c) => c.oid === p.polrelid) || null,
-    command: (p: PgPolicy) => p.polcmd || null,
+    command: (p: PgPolicy) => {
+      switch (p.polcmd) {
+      case 'r': return 'SELECT';
+      case 'a': return 'INSERT';
+      case 'w': return 'UPDATE';
+      case 'd': return 'DELETE';
+      case '*': return 'ALL';
+      default: return p.polcmd;
+      }
+    },
     roles: (p: PgPolicy) => p.polroles || [],
     usingExpr: (p: PgPolicy) => p.polqual || null,
     withCheck: (p: PgPolicy) => p.polwithcheck || null,
-  },
+    },
 
-  PgType: {
+    PgType: {
     __resolveType(obj: PgType) {
       if (obj.typtype === "d") return "DomainType";
       if (obj.typtype === "e") return "EnumType";

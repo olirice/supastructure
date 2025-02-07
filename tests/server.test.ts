@@ -42,7 +42,7 @@ async function executeTestQuery(
     response.body.kind === "single" ? response.body.singleResult.data : null;
 
   if (errors) {
-    //console.error("GraphQL Errors:", errors);
+    console.error("GraphQL Errors:", errors);
   }
 
   //console.log("Data:", data);
@@ -814,10 +814,12 @@ describe("GraphQL Server - Transactional Tests", () => {
   it("fetches a specific policy by oid", async () => {
     await client.query("create schema test_schema;");
     await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create role test_role;");
     await client.query(`
       create policy test_policy
       on test_schema.test_table
       for select
+      to test_role
       using (true);
     `);
     const result = await client.query(`
@@ -835,6 +837,10 @@ describe("GraphQL Server - Transactional Tests", () => {
             id
             oid
             name
+            roles
+            command
+            usingExpr
+            withCheck
           }
         }
       `,
@@ -847,6 +853,10 @@ describe("GraphQL Server - Transactional Tests", () => {
         id: expect.any(String),
         oid: policyOid,
         name: "test_policy",
+        roles: ["test_role"],
+        command: "SELECT",
+        usingExpr: "true",
+        withCheck: null,
       }),
     });
     expect(errors).toBeUndefined();
@@ -858,11 +868,14 @@ describe("GraphQL Server - Transactional Tests", () => {
   it("fetches a specific policy by id", async () => {
     await client.query("create schema test_schema;");
     await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create role test_role;");
     await client.query(`
       create policy test_policy
       on test_schema.test_table
-      for select
-      using (true);
+      for update
+      to test_role
+      using (true)
+      with check (id > 0);
     `);
     const result = await client.query(`
       select oid
@@ -880,6 +893,10 @@ describe("GraphQL Server - Transactional Tests", () => {
             id
             oid
             name
+            roles
+            command
+            usingExpr
+            withCheck
           }
         }
       `,
@@ -892,6 +909,10 @@ describe("GraphQL Server - Transactional Tests", () => {
         id: policyId,
         oid: policyOid,
         name: "test_policy",
+        roles: ["test_role"],
+        command: "UPDATE",
+        usingExpr: "true",
+        withCheck: "(id > 0)",
       }),
     });
     expect(errors).toBeUndefined();
@@ -903,11 +924,14 @@ describe("GraphQL Server - Transactional Tests", () => {
   it("fetches a specific policy by schema name and policy name", async () => {
     await client.query("create schema test_schema;");
     await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create role test_role;");
     await client.query(`
       create policy test_policy
       on test_schema.test_table
-      for select
-      using (true);
+      for all
+      to test_role
+      using (true)
+      with check (id > 0);
     `);
 
     const { data, errors } = await executeTestQuery(
@@ -918,6 +942,10 @@ describe("GraphQL Server - Transactional Tests", () => {
             id
             oid
             name
+            roles
+            command
+            usingExpr
+            withCheck
           }
         }
       `,
@@ -930,6 +958,684 @@ describe("GraphQL Server - Transactional Tests", () => {
         id: expect.any(String),
         oid: expect.any(Number),
         name: "test_policy",
+        roles: ["test_role"],
+        command: "ALL",
+        usingExpr: "true",
+        withCheck: "(id > 0)",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Type by OID
+  // =====================================
+  it("fetches a specific type by oid", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_type as (id int);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_type'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "test_type",
+        kind: "COMPOSITE",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Type by ID
+  // =====================================
+  it("fetches a specific type by id", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_type as (id int);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_type'
+    `);
+    const typeOid = result.rows[0].oid;
+    const typeId = buildGlobalId("PgType", typeOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          type(id: $id) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { id: typeId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: typeId,
+        oid: typeOid,
+        name: "test_type",
+        kind: "COMPOSITE",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Type by Schema Name and Type Name
+  // =====================================
+  it("fetches a specific type by schema name and type name", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_type as (id int);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          type(schemaName: "test_schema", name: "test_type") {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: expect.any(Number),
+        name: "test_type",
+        kind: "COMPOSITE",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Enum Type
+  // =====================================
+  it("fetches a specific enum type", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_enum as enum ('a', 'b');");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_enum'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+            ... on EnumType {
+              enumVariants
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "test_enum",
+        kind: "ENUM",
+        enumVariants: ["a", "b"],
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Domain Type
+  // =====================================
+  it("fetches a specific domain type", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create domain test_schema.test_domain as int;");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_domain'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+            ... on DomainType {
+              baseType {
+                ... on PgTypeInterface {
+                  name
+                }
+              }
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "test_domain",
+        kind: "DOMAIN",
+        baseType: expect.objectContaining({
+          name: "int4",
+        }),
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Array Type
+  // =====================================
+  it("fetches a specific array type", async () => {
+    await client.query("create schema test_schema;");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = '_int2'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+            ... on ArrayType {
+              elementType {
+                ... on PgTypeInterface {
+                  name
+                }
+              }
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "_int2",
+        kind: "ARRAY",
+        elementType: expect.objectContaining({
+          name: "int2",
+        }),
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Composite Type
+  // =====================================
+  it("fetches a specific composite type", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_composite as (id int, name text);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_composite'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+            ... on CompositeType {
+              fields {
+                name
+                type {
+                  ... on PgTypeInterface {
+                   name
+                  }
+                }
+                notNull
+              }
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "test_composite",
+        kind: "COMPOSITE",
+        fields: [
+          expect.objectContaining({
+            name: "id",
+            type: expect.objectContaining({
+              name: "int4",
+            }),
+            notNull: false,
+          }),
+          expect.objectContaining({
+            name: "name",
+            type: expect.objectContaining({
+              name: "text",
+            }),
+            notNull: false,
+          }),
+        ],
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Scalar Type
+  // =====================================
+  it("fetches a specific scalar type", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_scalar as enum ('a', 'b');");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_scalar'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "test_scalar",
+        kind: "ENUM",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Unknown Type
+  // =====================================
+  it("fetches a specific unknown type", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_unknown as (id int);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_unknown'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "test_unknown",
+        kind: "COMPOSITE",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Scalar Type by OID
+  // =====================================
+  it("fetches a specific scalar type by oid", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_scalar as enum ('a', 'b');");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_scalar'
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: typeOid,
+        name: "test_scalar",
+        kind: "ENUM",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Scalar Type by ID
+  // =====================================
+  it("fetches a specific scalar type by id", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_scalar as enum ('a', 'b');");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_scalar'
+    `);
+    const typeOid = result.rows[0].oid;
+    const typeId = buildGlobalId("PgType", typeOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          type(id: $id) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { id: typeId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: typeId,
+        oid: typeOid,
+        name: "test_scalar",
+        kind: "ENUM",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Scalar Type by Schema Name and Type Name
+  // =====================================
+  it("fetches a specific scalar type by schema name and type name", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_scalar as enum ('a', 'b');");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          type(schemaName: "test_schema", name: "test_scalar") {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: expect.any(Number),
+        name: "test_scalar",
+        kind: "ENUM",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Array Type by OID
+  // =====================================
+  it("fetches a specific array type by oid", async () => {
+    await client.query("create schema test_schema;");
+    const result = await client.query(`
+      select t.oid, t.typname
+      from pg_type t
+      join pg_namespace n on t.typnamespace = n.oid
+      where t.typname = '_int4'
+      and n.nspname = 'pg_catalog';
+    `);
+    const typeOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          type(oid: $oid) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+            ... on ArrayType {
+              elementType {
+                ... on PgTypeInterface {
+                  name
+                }
+              }
+            }
+          }
+        }
+      `,
+      { oid: typeOid },
+      client
+    );
+
+    expect(data?.type).toMatchObject({
+      id: expect.any(String),
+      oid: typeOid,
+      name: "_int4",
+      kind: "ARRAY",
+      elementType: {
+        name: "int4"
+      }
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Array Type by ID
+  // =====================================
+  it("fetches a specific array type by id", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_array as (id int);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_array'
+    `);
+    const typeOid = result.rows[0].oid;
+    const typeId = buildGlobalId("PgType", typeOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          type(id: $id) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { id: typeId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: typeId,
+        oid: typeOid,
+        name: "test_array",
+        kind: "COMPOSITE",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Array Type by Schema Name and Type Name
+  // =====================================
+  it("fetches a specific array type by schema name and type name", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_array as (id int);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          type(schemaName: "test_schema", name: "test_array") {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: expect.objectContaining({
+        id: expect.any(String),
+        oid: expect.any(Number),
+        name: "test_array",
+        kind: "COMPOSITE",
       }),
     });
     expect(errors).toBeUndefined();
