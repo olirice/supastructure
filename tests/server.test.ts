@@ -328,6 +328,254 @@ describe("GraphQL Server - Transactional Tests", () => {
   });
 
   // =====================================
+  // TEST: Fetch Columns for a Specific Table
+  // =====================================
+  it("fetches columns for a specific table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key, name text);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            columns {
+              edges {
+                node {
+                  id
+                  name
+                  attnum
+                  atttypid
+                }
+                cursor
+              }
+              nodes {
+                id
+                name
+                attnum
+                atttypid
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    // Create a loose matcher that doesn't care about specific values
+    expect(data).toEqual({
+      table: {
+        columns: {
+          edges: expect.arrayContaining([
+            {
+              cursor: expect.any(String),
+              node: {
+                id: expect.any(String),
+                name: "id",
+                attnum: 1,
+                atttypid: expect.any(Number)
+              }
+            },
+            {
+              cursor: expect.any(String),
+              node: {
+                id: expect.any(String),
+                name: "name", 
+                attnum: 2,
+                atttypid: expect.any(Number)
+              }
+            }
+          ]),
+          nodes: expect.arrayContaining([
+            {
+              id: expect.any(String),
+              name: "id",
+              attnum: 1, 
+              atttypid: expect.any(Number)
+            },
+            {
+              id: expect.any(String),
+              name: "name",
+              attnum: 2,
+              atttypid: expect.any(Number)
+            }
+          ]),
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: expect.any(String)
+          }
+        }
+      }
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Indexes for a Specific Table
+  // =====================================
+  it("fetches indexes for a specific table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            indexes {
+              edges {
+                node {
+                  id
+                  name
+                  accessMethod
+                  definition
+                }
+                cursor
+              }
+              nodes {
+                id
+                name
+                accessMethod
+                definition
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        indexes: {
+          edges: [
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "test_table_pkey",
+                accessMethod: "btree",
+                definition: expect.any(String),
+              }),
+              cursor: expect.any(String),
+            }),
+          ],
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              name: "test_table_pkey",
+              accessMethod: "btree",
+              definition: expect.any(String),
+            }),
+          ],
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: expect.any(String),
+          },
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Policies for a Specific Table
+  // =====================================
+  it("fetches policies for a specific table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create role test_role;");
+    await client.query(`
+      create policy test_policy
+      on test_schema.test_table
+      for select
+      to test_role
+      using (true);
+    `);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            policies {
+              edges {
+                node {
+                  id
+                  name
+                  roles
+                  command
+                  usingExpr
+                  withCheck
+                }
+                cursor
+              }
+              nodes {
+                id
+                name
+                roles
+                command
+                usingExpr
+                withCheck
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        policies: {
+          edges: [
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "test_policy",
+                roles: ["test_role"],
+                command: "SELECT",
+                usingExpr: "true",
+                withCheck: null,
+              }),
+              cursor: expect.any(String),
+            }),
+          ],
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              name: "test_policy",
+              roles: ["test_role"],
+              command: "SELECT",
+              usingExpr: "true",
+              withCheck: null,
+            }),
+          ],
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: expect.any(String),
+          },
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
   // TEST: Fetch a Specific View by OID
   // =====================================
   it("fetches a specific view by oid", async () => {
