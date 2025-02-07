@@ -28,7 +28,6 @@ describe("generic", () => {
 
   it("should return invalid values for an invalid ID", () => {
     const decoded = decodeId("invalid_id");
-    console.log("Decoded:", decoded);
     expect(decoded?.oid).toBeNaN();
     expect(typeof decoded?.typeName).toBe('string');
   });

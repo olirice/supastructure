@@ -452,6 +452,463 @@ describe("GraphQL Server - Transactional Tests", () => {
   });
 
   // =====================================
+  // TEST: Fetch Schema for a Specific View
+  // =====================================
+  it("fetches schema for a specific view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.test_view as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          view(schemaName: "test_schema", name: "test_view") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      view: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Schema for a Specific Materialized View
+  // =====================================
+  it("fetches schema for a specific materialized view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.test_matview as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          materializedView(schemaName: "test_schema", name: "test_matview") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      materializedView: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Views for a Specific Schema
+  // =====================================
+  it("fetches views for a specific schema", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.test_view as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            views {
+              nodes {
+                id
+                oid
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        views: {
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              oid: expect.any(Number),
+              name: "test_view",
+            }),
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Materialized Views for a Specific Schema
+  // =====================================
+  it("fetches materialized views for a specific schema", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.test_matview as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            materializedViews {
+              nodes {
+                id
+                oid
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        materializedViews: {
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              oid: expect.any(Number),
+              name: "test_matview",
+            }),
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Indexes for a Specific Schema
+  // =====================================
+  it("fetches indexes for a specific schema", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            indexes {
+              nodes {
+                id
+                oid
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        indexes: {
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              oid: expect.any(Number),
+              name: "test_table_pkey",
+            }),
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Triggers for a Specific Schema
+  // =====================================
+  it("fetches triggers for a specific schema", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query(`
+      create or replace function test_function()
+      returns trigger as $$
+      begin
+        new.id := new.id + 1;
+        return new;
+      end;
+      $$ language plpgsql;
+    `);
+    await client.query(`
+      create trigger test_trigger
+      before insert on test_schema.test_table
+      for each row
+      execute function test_function();
+    `);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            triggers {
+              nodes {
+                id
+                oid
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        triggers: {
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              oid: expect.any(Number),
+              name: "test_trigger",
+            }),
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Policies for a Specific Schema
+  // =====================================
+  it("fetches policies for a specific schema", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create role test_role;");
+    await client.query(`
+      create policy test_policy
+      on test_schema.test_table
+      for select
+      to test_role
+      using (true);
+    `);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            policies {
+              nodes {
+                id
+                oid
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        policies: {
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              oid: expect.any(Number),
+              name: "test_policy",
+            }),
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Types for a Specific Schema
+  // =====================================
+  it("fetches types for a specific schema", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_type as (id int);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            types {
+              nodes {
+                ... on PgTypeInterface {
+                  id
+                  oid
+                  name
+                }
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        types: {
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              oid: expect.any(Number),
+              name: "test_type",
+            }),
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Schema for a Specific Table
+  // =====================================
+  it("fetches schema for a specific table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Schema for a Specific View
+  // =====================================
+  it("fetches schema for a specific view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.test_view as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          view(schemaName: "test_schema", name: "test_view") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      view: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Schema for a Specific Materialized View
+  // =====================================
+  it("fetches schema for a specific materialized view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.test_matview as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          materializedView(schemaName: "test_schema", name: "test_matview") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      materializedView: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
   // TEST: Fetch Indexes for a Specific Table
   // =====================================
   it("fetches indexes for a specific table", async () => {
@@ -606,6 +1063,114 @@ describe("GraphQL Server - Transactional Tests", () => {
             endCursor: expect.any(String),
           },
         },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Schema for a Specific Table
+  // =====================================
+  it("fetches schema for a specific table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Schema for a Specific View
+  // =====================================
+  it("fetches schema for a specific view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.test_view as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          view(schemaName: "test_schema", name: "test_view") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      view: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Schema for a Specific Materialized View
+  // =====================================
+  it("fetches schema for a specific materialized view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.test_matview as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          materializedView(schemaName: "test_schema", name: "test_matview") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      materializedView: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
       },
     });
     expect(errors).toBeUndefined();
