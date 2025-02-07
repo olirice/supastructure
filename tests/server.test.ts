@@ -808,4 +808,131 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
+  // =====================================
+  // TEST: Fetch a Specific Policy by OID
+  // =====================================
+  it("fetches a specific policy by oid", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query(`
+      create policy test_policy
+      on test_schema.test_table
+      for select
+      using (true);
+    `);
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_policy
+      where polname = 'test_policy'
+    `);
+    const policyOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          policy(oid: $oid) {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      { oid: policyOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      policy: expect.objectContaining({
+        id: expect.any(String),
+        oid: policyOid,
+        name: "test_policy",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Policy by ID
+  // =====================================
+  it("fetches a specific policy by id", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query(`
+      create policy test_policy
+      on test_schema.test_table
+      for select
+      using (true);
+    `);
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_policy
+      where polname = 'test_policy'
+    `);
+    const policyOid = result.rows[0].oid;
+    const policyId = buildGlobalId("Policy", policyOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          policy(id: $id) {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      { id: policyId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      policy: expect.objectContaining({
+        id: policyId,
+        oid: policyOid,
+        name: "test_policy",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Policy by Schema Name and Policy Name
+  // =====================================
+  it("fetches a specific policy by schema name and policy name", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query(`
+      create policy test_policy
+      on test_schema.test_table
+      for select
+      using (true);
+    `);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          policy(schemaName: "test_schema", name: "test_policy") {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      policy: expect.objectContaining({
+        id: expect.any(String),
+        oid: expect.any(Number),
+        name: "test_policy",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
 });

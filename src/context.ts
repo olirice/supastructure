@@ -135,7 +135,7 @@ export async function context(
         select
           p.oid, p.polname, p.polrelid,
           p.polcmd,
-          coalesce(array_agg(r.rolname) filter (where r.rolname is not null), '{}') as polroles,
+          coalesce(array_agg(r.rolname::text) filter (where r.rolname is not null), '{}') as polroles,
           pg_get_expr(p.polqual, p.polrelid) as polqual,
           pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck
         from pg_catalog.pg_policy p
