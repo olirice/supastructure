@@ -61,14 +61,17 @@ export function paginate<T>(
   };
 }
 
-export function decodeId(id: string): { typeName: string; oid: number } | null {
+export function decodeId(id: string): { typeName: string; oid: number } {
   try {
     const decoded = Buffer.from(id, "base64").toString();
     const [typeName, oidStr] = decoded.split(":");
-    const oid = parseInt(oidStr, 10);
-    return { typeName, oid };
+    const numOid = Number(oidStr);
+    if (!typeName || !oidStr || isNaN(numOid)) {
+      return { typeName: decoded, oid: NaN };
+    }
+    return { typeName, oid: numOid };
   } catch {
-    return null;
+    return { typeName: id, oid: NaN };
   }
 }
 

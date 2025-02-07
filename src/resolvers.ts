@@ -612,6 +612,21 @@ export const resolvers = {
         nodes: [],
       };
     },
+    columns: (p: PgClass, args: any, ctx: ReqContext) => {
+      const cols = ctx.pg_attributes
+        .filter((col) => col.attrelid === p.oid)
+        .map((col) => ({
+          attrelid: col.attrelid,
+          name: col.attname,
+          attnum: col.attnum,
+          atttypid: col.atttypid,
+        }));
+      return paginate(cols, {
+        first: args.first,
+        after: args.after,
+        cursorForNode: (c) => String(c.attrelid),
+      });
+    },
   },
 
   MaterializedView: {
@@ -636,6 +651,21 @@ export const resolvers = {
         pageInfo: { hasNextPage: false, endCursor: null },
         nodes: [],
       };
+    },
+    columns: (p: PgClass, args: any, ctx: ReqContext) => {
+      const cols = ctx.pg_attributes
+        .filter((col) => col.attrelid === p.oid)
+        .map((col) => ({
+          attrelid: col.attrelid,
+          name: col.attname,
+          attnum: col.attnum,
+          atttypid: col.atttypid,
+        }));
+      return paginate(cols, {
+        first: args.first,
+        after: args.after,
+        cursorForNode: (c) => String(c.attrelid),
+      });
     },
   },
 

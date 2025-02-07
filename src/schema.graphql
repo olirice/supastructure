@@ -282,6 +282,7 @@ type View implements Node {
   name: String!
   relkind: String!
   schema: Schema!
+  columns: ColumnConnection!
 
   # privileges
   activePrivileges: TablePrivilegeConnection!
@@ -309,6 +310,7 @@ type MaterializedView implements Node {
   relkind: String!
   schema: Schema!
   populated: Boolean!
+  columns: ColumnConnection!
 
   # privileges
   activePrivileges: TablePrivilegeConnection!

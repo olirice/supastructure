@@ -416,6 +416,42 @@ describe("GraphQL Server - Transactional Tests", () => {
   });
 
   // =====================================
+  // TEST: Fetch Schema for a Specific Table
+  // =====================================
+  it("fetches schema for a specific table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          oid: expect.any(Number),
+          name: "test_schema",
+        }),
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
   // TEST: Fetch Indexes for a Specific Table
   // =====================================
   it("fetches indexes for a specific table", async () => {
@@ -685,6 +721,93 @@ describe("GraphQL Server - Transactional Tests", () => {
   });
 
   // =====================================
+  // TEST: Fetch Columns for a Specific View
+  // =====================================
+  it("fetches columns for a specific view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.test_view as select 1 as id, 'test' as name;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          view(schemaName: "test_schema", name: "test_view") {
+            columns {
+              edges {
+                node {
+                  id
+                  name
+                  attnum
+                  atttypid
+                }
+                cursor
+              }
+              nodes {
+                id
+                name
+                attnum
+                atttypid
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      view: {
+        columns: {
+          edges: [
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "id",
+                attnum: 1,
+                atttypid: expect.any(Number),
+              }),
+              cursor: expect.any(String),
+            }),
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "name",
+                attnum: 2,
+                atttypid: expect.any(Number),
+              }),
+              cursor: expect.any(String),
+            }),
+          ],
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              name: "id",
+              attnum: 1,
+              atttypid: expect.any(Number),
+            }),
+            expect.objectContaining({
+              id: expect.any(String),
+              name: "name",
+              attnum: 2,
+              atttypid: expect.any(Number),
+            }),
+          ],
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: expect.any(String),
+          },
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
   // TEST: Fetch a Specific Materialized View by OID
   // =====================================
   it("fetches a specific materialized view by oid", async () => {
@@ -789,6 +912,93 @@ describe("GraphQL Server - Transactional Tests", () => {
         oid: expect.any(Number),
         name: "test_matview",
       }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Columns for a Specific Materialized View
+  // =====================================
+  it("fetches columns for a specific materialized view", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.test_matview as select 1 as id, 'test' as name;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          materializedView(schemaName: "test_schema", name: "test_matview") {
+            columns {
+              edges {
+                node {
+                  id
+                  name
+                  attnum
+                  atttypid
+                }
+                cursor
+              }
+              nodes {
+                id
+                name
+                attnum
+                atttypid
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      materializedView: {
+        columns: {
+          edges: [
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "id",
+                attnum: 1,
+                atttypid: expect.any(Number),
+              }),
+              cursor: expect.any(String),
+            }),
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "name",
+                attnum: 2,
+                atttypid: expect.any(Number),
+              }),
+              cursor: expect.any(String),
+            }),
+          ],
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              name: "id",
+              attnum: 1,
+              atttypid: expect.any(Number),
+            }),
+            expect.objectContaining({
+              id: expect.any(String),
+              name: "name",
+              attnum: 2,
+              atttypid: expect.any(Number),
+            }),
+          ],
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: expect.any(String),
+          },
+        },
+      },
     });
     expect(errors).toBeUndefined();
   });
@@ -1890,3 +2100,6 @@ describe("GraphQL Server - Transactional Tests", () => {
   });
 
 });
+
+
+
