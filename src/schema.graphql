@@ -163,10 +163,6 @@ type Schema implements Node {
   triggers(first: Int, after: String): TriggerConnection!
   policies(first: Int, after: String): PolicyConnection!
   types(first: Int, after: String): PgTypeConnection!
-
-  # privileges
-  activePrivileges: SchemaPrivilegeConnection!
-  defaultPrivileges: SchemaPrivilegeConnection!
 }
 
 ########################################
@@ -230,10 +226,6 @@ type Table implements Node {
   columns: ColumnConnection!
   indexes: IndexConnection!
   policies: PolicyConnection!
-
-  # privileges
-  activePrivileges: TablePrivilegeConnection!
-  defaultPrivileges: TablePrivilegeConnection!
 }
 
 ########################################
@@ -283,10 +275,6 @@ type View implements Node {
   relkind: String!
   schema: Schema!
   columns: ColumnConnection!
-
-  # privileges
-  activePrivileges: TablePrivilegeConnection!
-  defaultPrivileges: TablePrivilegeConnection!
 }
 
 ########################################
@@ -311,10 +299,6 @@ type MaterializedView implements Node {
   schema: Schema!
   populated: Boolean!
   columns: ColumnConnection!
-
-  # privileges
-  activePrivileges: TablePrivilegeConnection!
-  defaultPrivileges: TablePrivilegeConnection!
 }
 
 ########################################
