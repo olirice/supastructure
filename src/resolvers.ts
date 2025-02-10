@@ -264,6 +264,7 @@ export const resolvers = {
 
     node: (_p: unknown, args: { id: string }, ctx: ReqContext) => {
       const info = decodeId(args.id);
+      console.log("info", info);
       if (!info) return null;
       switch (info.typeName) {
         case "Database":

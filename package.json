@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "compile": "tsc",
-    "start": "npm run compile && node ./dist/index.js",
+    "start": "npm run compile && node ./dist/src/index.js",
     "dev": "nodemon --watch src --ext ts --exec \"npm run compile-and-run\"",
-    "compile-and-run": "tsc && node ./dist/index.js",
+    "compile-and-run": "tsc && node ./dist/src/index.js",
     "test": "jest --coverage"
   },
   "keywords": [],

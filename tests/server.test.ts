@@ -2359,6 +2359,348 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
+  // =====================================
+  // TEST: Fetch a Database by ID
+  // =====================================
+  it("fetches a database by ID", async () => {
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_database
+      where datname = current_database()
+    `);
+    const databaseOid = result.rows[0].oid;
+    
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Database {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("Database", databaseOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: databaseOid,
+        name: "postgres",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Schema by ID
+  // =====================================
+  it("fetches a schema by ID", async () => {
+    await client.query("create schema test_schema;");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_namespace
+      where nspname = 'test_schema'
+    `);
+    const schemaOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Schema {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("Schema", schemaOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: schemaOid,
+        name: "test_schema",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Table by ID
+  // =====================================
+  it("fetches a table by ID", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_class
+      where relname = 'test_table'
+    `);
+    const tableOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Table {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("Table", tableOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: tableOid,
+        name: "test_table",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a View by ID
+  // =====================================
+  it("fetches a view by ID", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.test_view as select 1 as id;");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_class
+      where relname = 'test_view'
+    `);
+    const viewOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on View {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("View", viewOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: viewOid,
+        name: "test_view",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Materialized View by ID
+  // =====================================
+  it("fetches a materialized view by ID", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.test_matview as select 1 as id;");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_class
+      where relname = 'test_matview'
+    `);
+    const matviewOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on MaterializedView {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("MaterializedView", matviewOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: matviewOid,
+        name: "test_matview",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch an Index by ID
+  // =====================================
+  it("fetches an index by ID", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create index test_index on test_schema.test_table (id);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_class
+      where relname = 'test_index'
+    `);
+    const indexOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Index {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("Index", indexOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: indexOid,
+        name: "test_index",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Trigger by ID
+  // =====================================
+  it("fetches a trigger by ID", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query(`
+      create or replace function test_function()
+      returns trigger as $$
+      begin
+        new.id := new.id + 1;
+        return new;
+      end;
+      $$ language plpgsql;
+    `);
+    await client.query(`
+      create trigger test_trigger
+      before insert on test_schema.test_table
+      for each row
+      execute function test_function();
+    `);
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_trigger
+      where tgname = 'test_trigger'
+    `);
+    const triggerOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Trigger {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("Trigger", triggerOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: triggerOid,
+        name: "test_trigger",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Policy by ID
+  // =====================================
+  it("fetches a policy by ID", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create role test_role;");
+    await client.query(`
+      create policy test_policy
+      on test_schema.test_table
+      for select
+      to test_role
+      using (true);
+    `);
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_policy
+      where polname = 'test_policy'
+    `);
+    const policyOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Policy {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: buildGlobalId("Policy", policyOid) },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: expect.any(String),
+        oid: policyOid,
+        name: "test_policy",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
   
 
 });

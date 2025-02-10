@@ -291,6 +291,7 @@ type MaterializedView implements Node {
   name: String!
   relkind: String!
   schema: Schema!
+  indexes: IndexConnection!
   populated: Boolean!
   columns: ColumnConnection!
 }
