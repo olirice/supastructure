@@ -74,7 +74,6 @@ type Database implements Node {
   schemas(
     first: Int
     after: String
-    filter: SchemaFilter
     orderBy: SchemaOrderBy
   ): SchemaConnection!
 }
@@ -154,15 +153,10 @@ type Schema implements Node {
   tables(
     first: Int
     after: String
-    filter: TableFilter
     orderBy: TableOrderBy
   ): TableConnection!
   views(first: Int, after: String): ViewConnection!
   materializedViews(first: Int, after: String): MaterializedViewConnection!
-  indexes(first: Int, after: String): IndexConnection!
-  triggers(first: Int, after: String): TriggerConnection!
-  policies(first: Int, after: String): PolicyConnection!
-  types(first: Int, after: String): PgTypeConnection!
 }
 
 ########################################

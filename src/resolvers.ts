@@ -448,48 +448,6 @@ export const resolvers = {
         cursorForNode: (n) => String(n.oid),
       });
     },
-    indexes: (p: PgNamespace, args: any, ctx: ReqContext) => {
-      const items = ctx.pg_classes.filter(
-        (c) => c.relnamespace === p.oid && c.relkind === "i"
-      );
-      return paginate(items, {
-        first: args.first,
-        after: args.after,
-        cursorForNode: (n) => String(n.oid),
-      });
-    },
-    triggers: (p: PgNamespace, args: any, ctx: ReqContext) => {
-      const items = ctx.pg_triggers.filter((t) => {
-        const c = ctx.pg_classes.find((cl) => cl.oid === t.tgrelid);
-        return c && c.relnamespace === p.oid;
-      });
-      return paginate(items, {
-        first: args.first,
-        after: args.after,
-        cursorForNode: (n) => String(n.oid),
-      });
-    },
-    policies: (p: PgNamespace, args: any, ctx: ReqContext) => {
-      const items = ctx.pg_policies.filter((pol) => {
-        const c = ctx.pg_classes.find((cl) => cl.oid === pol.polrelid);
-        return c && c.relnamespace === p.oid;
-      });
-      return paginate(items, {
-        first: args.first,
-        after: args.after,
-        cursorForNode: (n) => String(n.oid),
-      });
-    },
-    types: (p: PgNamespace, args: any, ctx: ReqContext) => {
-      const schemaTypes = ctx.pg_types.filter(
-        (t) => findTypeNamespaceOid(t, ctx) === p.oid
-      );
-      return paginate(schemaTypes, {
-        first: args.first,
-        after: args.after,
-        cursorForNode: (n) => String(n.oid),
-      });
-    },
   },
 
   Table: {
