@@ -2700,8 +2700,407 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
+  // =====================================
+  // TEST: Connection Fields: Schema
+  // =====================================
+  it("returns correct connection fields for schemas", async () => {
+    await client.query("create schema test_schema1;");
+    await client.query("create schema test_schema2;");
 
-  
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          database {
+            schemas(first: 2) {
+              edges {
+                node {
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.database?.schemas).toMatchObject({
+      edges: [
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        },
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        }
+      ],
+      pageInfo: {
+        hasNextPage: expect.any(Boolean),
+        endCursor: expect.any(String)
+      },
+      nodes: [
+        { name: expect.any(String) },
+        { name: expect.any(String) }
+      ]
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Connection Fields: Tables
+  // =====================================
+  it("returns correct connection fields for tables", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.table1 (id serial primary key);");
+    await client.query("create table test_schema.table2 (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            tables(first: 2) {
+              edges {
+                node {
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.schema?.tables).toMatchObject({
+      edges: [
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        },
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        }
+      ],
+      pageInfo: {
+        hasNextPage: expect.any(Boolean),
+        endCursor: expect.any(String)
+      },
+      nodes: [
+        { name: expect.any(String) },
+        { name: expect.any(String) }
+      ]
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Connection Fields: Columns
+  // =====================================
+  it("returns correct connection fields for columns", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key, name text);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            columns {
+              edges {
+                node {
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.table?.columns).toMatchObject({
+      edges: [
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        },
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        }
+      ],
+      pageInfo: {
+        hasNextPage: expect.any(Boolean),
+        endCursor: expect.any(String)
+      },
+      nodes: [
+        { name: expect.any(String) },
+        { name: expect.any(String) }
+      ]
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Connection Fields: Views
+  // =====================================
+  it("returns correct connection fields for views", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.view1 as select 1 as id;");
+    await client.query("create view test_schema.view2 as select 2 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            views {
+              edges {
+                node {
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.schema?.views).toMatchObject({
+      edges: [
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        },
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        }
+      ],
+      pageInfo: {
+        hasNextPage: expect.any(Boolean),
+        endCursor: expect.any(String)
+      },
+      nodes: [
+        { name: expect.any(String) },
+        { name: expect.any(String) }
+      ]
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Connection Fields: Materialized Views
+  // =====================================
+  it("returns correct connection fields for materialized views", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.matview1 as select 1 as id;");
+    await client.query("create materialized view test_schema.matview2 as select 2 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            materializedViews {
+              edges {
+                node {
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.schema?.materializedViews).toMatchObject({
+      edges: [
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        },
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        }
+      ],
+      pageInfo: {
+        hasNextPage: expect.any(Boolean),
+        endCursor: expect.any(String)
+      },
+      nodes: [
+        { name: expect.any(String) },
+        { name: expect.any(String) }
+      ]
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Connection Fields: Indexes
+  // =====================================
+  it("returns correct connection fields for indexes", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key, name text);");
+    await client.query("create index idx1 on test_schema.test_table (name);");
+    await client.query("create index idx2 on test_schema.test_table (id);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            indexes {
+              edges {
+                node {
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.table?.indexes).toMatchObject({
+      edges: expect.arrayContaining([
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        }
+      ]),
+      pageInfo: {
+        hasNextPage: expect.any(Boolean),
+        endCursor: expect.any(String)
+      },
+      nodes: expect.arrayContaining([
+        { name: expect.any(String) }
+      ])
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Connection Fields: Policies
+  // =====================================
+  it("returns correct connection fields for policies", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("alter table test_schema.test_table enable row level security;");
+    await client.query("create policy policy1 on test_schema.test_table for select using (true);");
+    await client.query("create policy policy2 on test_schema.test_table for insert with check (true);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            policies {
+              edges {
+                node {
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.table?.policies).toMatchObject({
+      edges: [
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        },
+        { 
+          node: { name: expect.any(String) },
+          cursor: expect.any(String)
+        }
+      ],
+      pageInfo: {
+        hasNextPage: expect.any(Boolean),
+        endCursor: expect.any(String)
+      },
+      nodes: [
+        { name: expect.any(String) },
+        { name: expect.any(String) }
+      ]
+    });
+    expect(errors).toBeUndefined();
+  });
 
 });
 
