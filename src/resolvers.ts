@@ -391,12 +391,6 @@ export const resolvers = {
     name: (p: PgDatabase) => p.datname,
     schemas: (p: PgDatabase, args: any, ctx: ReqContext) => {
       let items = ctx.pg_namespaces;
-      if (args.filter?.name) {
-        items = items.filter((s) => s.nspname === args.filter.name);
-      }
-      if (args.filter?.oid) {
-        items = items.filter((s) => s.oid === args.filter.oid);
-      }
       if (args.orderBy?.field) {
         if (args.orderBy.field === "NAME") {
           sortItems(items, (x) => x.nspname, args.orderBy.direction);
@@ -421,10 +415,6 @@ export const resolvers = {
       let items = ctx.pg_classes.filter(
         (c) => c.relnamespace === p.oid && c.relkind === "r"
       );
-      if (args.filter?.name)
-        items = items.filter((c) => c.relname === args.filter.name);
-      if (args.filter?.oid)
-        items = items.filter((c) => c.oid === args.filter.oid);
       if (args.orderBy?.field) {
         if (args.orderBy.field === "NAME") {
           sortItems(items, (x) => x.relname, args.orderBy.direction);
