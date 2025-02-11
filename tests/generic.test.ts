@@ -32,6 +32,12 @@ describe("generic", () => {
     expect(typeof decoded?.typeName).toBe('string');
   });
 
+  it("should handle invalid base64 string in decodeId", () => {
+    const invalidBase64 = "invalid_base64";
+    const decoded = decodeId(invalidBase64);
+    expect(decoded).toEqual({ typeName: invalidBase64, oid: NaN });
+  });
+
   it("should build a global ID", () => {
     const id = buildGlobalId("TestType", 123);
     expect(id).toBe(Buffer.from("TestType:123").toString("base64"));

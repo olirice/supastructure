@@ -70,7 +70,7 @@ export function decodeId(id: string): { typeName: string; oid: number } {
     const [typeName, oidStr] = decoded.split(":");
     const numOid = Number(oidStr);
     if (!typeName || !oidStr || isNaN(numOid)) {
-      return { typeName: decoded, oid: NaN };
+      throw new Error("Invalid ID format");
     }
     return { typeName, oid: numOid };
   } catch {

@@ -301,7 +301,9 @@ export const resolvers = {
         case "PgType":
           return ctx.pg_types.find((t) => t.oid === info.oid) || null;
         case "Column":
-          return ctx.pg_attributes.find((a) => a.attrelid === info.oid) || null;
+          const x = ctx.pg_attributes.find((t) => t.attrelid === info.oid) || null;
+          console.log(x)
+          return x;
         case "Role":
           return ctx.pg_roles.find((r) => r.oid === info.oid) || null;
         default:
@@ -497,19 +499,12 @@ export const resolvers = {
     id: (p: PgClass) => buildGlobalId("Table", p.oid),
     oid: (p: PgClass) => p.oid,
     name: (p: PgClass) => p.relname,
-    relkind: (p: PgClass) => p.relkind,
     rowLevelSecurityEnabled: (p: PgClass) => p.relrowsecurity || false,
     schema: (p: PgClass, _a: any, ctx: ReqContext) =>
       ctx.pg_namespaces.find((n) => n.oid === p.relnamespace) || null,
     columns: (p: PgClass, args: any, ctx: ReqContext) => {
       const cols = ctx.pg_attributes
-        .filter((col) => col.attrelid === p.oid)
-        .map((col) => ({
-          attrelid: col.attrelid,
-          name: col.attname,
-          attnum: col.attnum,
-          atttypid: col.atttypid,
-        }));
+        .filter((col) => col.attrelid === p.oid);
       return paginate(cols, {
         first: args.first,
         after: args.after,
@@ -541,11 +536,16 @@ export const resolvers = {
     },
   },
 
+
+
   Column: {
-    id: (p: { attrelid: number }) => buildGlobalId("Column", p.attrelid),
-    table: (p: { attrelid: number }, _a: any, ctx: ReqContext) =>
+    id: (p: PgAttribute) => buildGlobalId("Column", p.attrelid),
+    name: (p: PgAttribute) => p.attname,
+    attnum: (p: PgAttribute) => p.attnum,
+    atttypid: (p: PgAttribute) => p.atttypid,
+    table: (p: PgAttribute, _a: any, ctx: ReqContext) =>
       ctx.pg_classes.find((c) => c.oid === p.attrelid) || null,
-    type: (p: { atttypid: number }, _a: any, ctx: ReqContext) =>
+    type: (p: PgAttribute, _a: any, ctx: ReqContext) =>
       ctx.pg_types.find((t) => t.oid === p.atttypid) || null,
   },
 
@@ -553,18 +553,11 @@ export const resolvers = {
     id: (p: PgClass) => buildGlobalId("View", p.oid),
     oid: (p: PgClass) => p.oid,
     name: (p: PgClass) => p.relname,
-    relkind: (p: PgClass) => p.relkind,
     schema: (p: PgClass, _a: any, ctx: ReqContext) =>
       ctx.pg_namespaces.find((n) => n.oid === p.relnamespace) || null,
     columns: (p: PgClass, args: any, ctx: ReqContext) => {
       const cols = ctx.pg_attributes
-        .filter((col) => col.attrelid === p.oid)
-        .map((col) => ({
-          attrelid: col.attrelid,
-          name: col.attname,
-          attnum: col.attnum,
-          atttypid: col.atttypid,
-        }));
+        .filter((col) => col.attrelid === p.oid);
       return paginate(cols, {
         first: args.first,
         after: args.after,
@@ -577,20 +570,13 @@ export const resolvers = {
     id: (p: PgClass) => buildGlobalId("MaterializedView", p.oid),
     oid: (p: PgClass) => p.oid,
     name: (p: PgClass) => p.relname,
-    relkind: (p: PgClass) => p.relkind,
     schema: (p: PgClass, _a: any, ctx: ReqContext) =>
       ctx.pg_namespaces.find((n) => n.oid === p.relnamespace) || null,
     populated: (p: PgClass) =>
       typeof p.relispopulated === "boolean" ? p.relispopulated : false,
     columns: (p: PgClass, args: any, ctx: ReqContext) => {
       const cols = ctx.pg_attributes
-        .filter((col) => col.attrelid === p.oid)
-        .map((col) => ({
-          attrelid: col.attrelid,
-          name: col.attname,
-          attnum: col.attnum,
-          atttypid: col.atttypid,
-        }));
+        .filter((col) => col.attrelid === p.oid);
       return paginate(cols, {
         first: args.first,
         after: args.after,
@@ -603,7 +589,6 @@ export const resolvers = {
     id: (p: PgClass) => buildGlobalId("Index", p.oid),
     oid: (p: PgClass) => p.oid,
     name: (p: PgClass) => p.relname,
-    relkind: (p: PgClass) => p.relkind,
     schema: (p: PgClass, _a: any, ctx: ReqContext) =>
       ctx.pg_namespaces.find((n) => n.oid === p.relnamespace) || null,
     table: (p: PgClass, _a: any, ctx: ReqContext) => {
@@ -654,6 +639,11 @@ export const resolvers = {
     roles: (p: PgPolicy) => p.polroles || [],
     usingExpr: (p: PgPolicy) => p.polqual || null,
     withCheck: (p: PgPolicy) => p.polwithcheck || null,
+  },
+  Role: {
+    id: (p: PgRole) => buildGlobalId("Role", p.oid),
+    oid: (p: PgRole) => p.oid,
+    name: (p: PgRole) => p.rolname,
   },
 
   PgType: {

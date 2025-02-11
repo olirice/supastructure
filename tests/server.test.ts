@@ -3144,6 +3144,391 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
+  // =====================================
+  // TEST: Table returning null
+  // =====================================
+  it("table returning null", async () => {
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table {
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: null
+    });
+  });
+
+  // =====================================
+  // TEST: View returning null
+  // =====================================
+  it("view returning null", async () => {
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          view {
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      view: null
+    });
+  });
+
+  // =====================================
+  // TEST: Schema returning null
+  // =====================================
+  it("schema returning null", async () => {
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema {
+            name
+          }
+        }
+      `,
+      { },
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: null
+    });
+  });
+
+  // =====================================
+  // TEST: Materialized View returning null
+  // =====================================
+  it("materialized view returning null", async () => {
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          materializedView {
+            name
+          }
+        }
+      `,
+      { },
+      client
+    );
+
+    expect(data).toMatchObject({
+      materializedView: null
+    });
+  });
+
+  // =====================================
+  // TEST: Policy returning null
+  // =====================================
+  it("policy returning null", async () => {
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          policy {
+            name
+          }
+        }
+      `,
+      { },
+      client
+    );
+
+    expect(data).toMatchObject({
+      policy: null
+    });
+  });
+
+  // =====================================
+  // TEST: Index returning null
+  // =====================================
+  it("index returning null", async () => {
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          index {
+            name
+          }
+        }
+      `,
+      { },
+      client
+    );
+
+    expect(data).toMatchObject({
+      index: null
+    });
+  });
+
+  // =====================================
+  // TEST: Trigger returning null
+  // =====================================
+  it("trigger returning null", async () => {
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          trigger {
+            name
+          }
+        }
+      `,
+      { },
+      client
+    );
+
+    expect(data).toMatchObject({
+      trigger: null
+    });
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Role by ID
+  // =====================================
+  it("fetches a specific role by id", async () => {
+    const result = await client.query(`
+      select oid, rolname
+      from pg_catalog.pg_roles
+      where rolname = 'postgres'
+    `);
+    const roleOid = result.rows[0].oid;
+    const roleId = buildGlobalId("Role", roleOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          role(id: $id) {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      { id: roleId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      role: expect.objectContaining({
+        id: roleId,
+        oid: roleOid,
+        name: "postgres",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Role by OID
+  // =====================================
+  it("fetches a specific role by oid", async () => {
+    const result = await client.query(`
+      select oid, rolname
+      from pg_catalog.pg_roles
+      where rolname = 'postgres'
+    `);
+    const roleOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          role(oid: $oid) {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      { oid: roleOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      role: expect.objectContaining({
+        id: expect.any(String),
+        oid: roleOid,
+        name: "postgres",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Specific Role by Name
+  // =====================================
+  it("fetches a specific role by name", async () => {
+    const roleName = "postgres";
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($name: String!) {
+          role(name: $name) {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      { name: roleName },
+      client
+    );
+
+    expect(data).toMatchObject({
+      role: expect.objectContaining({
+        id: expect.any(String),
+        oid: expect.any(Number),
+        name: roleName,
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a PgType node by ID
+  // =====================================
+  it("fetches a PgType node by id", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create type test_schema.test_type as (id int);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_type
+      where typname = 'test_type'
+    `);
+    const typeOid = result.rows[0].oid;
+    const typeId = buildGlobalId("PgType", typeOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on PgTypeInterface {
+              id
+              oid
+              name
+              kind
+            }
+          }
+        }
+      `,
+      { id: typeId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: typeId,
+        oid: typeOid,
+        name: "test_type",
+        kind: "COMPOSITE",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Column node by ID
+  // =====================================
+  it("fetches a Column node by id", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (some_unique_name serial primary key, name text);");
+    const result = await client.query(`
+      select attrelid
+      from pg_catalog.pg_attribute
+      where attname = 'some_unique_name'
+    `);
+    const columnOid = result.rows[0].attrelid;
+    const columnId = buildGlobalId("Column", columnOid);
+    console.log(columnId);
+    console.log(columnOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Column {
+              id
+              name
+              attnum
+              atttypid
+            }
+          }
+        }
+      `,
+      { id: columnId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: columnId,
+        name: "some_unique_name",
+        attnum: 1,
+        atttypid: expect.any(Number),
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch a Role node by ID
+  // =====================================
+  it("fetches a Role node by id", async () => {
+    const result = await client.query(`
+      select oid, rolname
+      from pg_catalog.pg_roles
+      where rolname = 'postgres'
+    `);
+    const roleOid = result.rows[0].oid;
+    const roleId = buildGlobalId("Role", roleOid);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            ... on Role {
+              id
+              oid
+              name
+            }
+          }
+        }
+      `,
+      { id: roleId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: expect.objectContaining({
+        id: roleId,
+        oid: roleOid,
+        name: "postgres",
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
 });
 
 

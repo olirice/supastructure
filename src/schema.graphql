@@ -148,8 +148,6 @@ type Table implements Node {
   oid: Int!
   """From pg_class.relname"""
   name: String!
-  """From pg_class.relkind"""
-  relkind: String!
   schema: Schema!
   """From pg_class.relrowsecurity"""
   rowLevelSecurityEnabled: Boolean!
@@ -204,8 +202,6 @@ type View implements Node {
   oid: Int!
   """From pg_class.relname"""
   name: String!
-  """From pg_class.relkind"""
-  relkind: String!
   schema: Schema!
   columns: ColumnConnection!
 }
@@ -230,8 +226,6 @@ type MaterializedView implements Node {
   oid: Int!
   """From pg_class.relname"""
   name: String!
-  """From pg_class.relkind"""
-  relkind: String!
   schema: Schema!
   indexes: IndexConnection!
   """From pg_class.relispopulated"""
@@ -259,8 +253,6 @@ type Index implements Node {
   oid: Int!
   """From pg_class.relname"""
   name: String!
-  """From pg_class.relkind"""
-  relkind: String!
   schema: Schema!
   table: Table!
   """From pg_am.amname"""
