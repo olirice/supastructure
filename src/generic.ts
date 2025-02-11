@@ -1,6 +1,8 @@
 import { ReqContext } from "./context.js";
 import { PgType } from "./types.js";
 
+const MAX_PAGE_SIZE = 30;
+
 export function sortItems<T>(
   items: T[],
   fieldGetter: (item: T) => string | number,
@@ -34,7 +36,7 @@ export interface PaginatedResult<T> {
 
 export function paginate<T>(
   items: T[],
-  { first = 10, after, cursorForNode }: PaginateOptions<T>
+  { first = MAX_PAGE_SIZE, after, cursorForNode }: PaginateOptions<T>
 ): PaginatedResult<T> {
   let sliceStart = 0;
   if (after) {
@@ -42,7 +44,8 @@ export function paginate<T>(
     const idx = items.findIndex((i) => cursorForNode(i) === String(afterVal));
     sliceStart = idx >= 0 ? idx + 1 : 0;
   }
-  const sliceEnd = sliceStart + first;
+  const limitedFirst = limitPageSize(first);
+  const sliceEnd = sliceStart + limitedFirst;
   const sliced = items.slice(sliceStart, sliceEnd);
   const hasNextPage = sliceEnd < items.length;
   const edges = sliced.map((node) => {
@@ -88,16 +91,10 @@ export function singleResultOrError<T>(
       `Multiple ${entityName} results found. Provide more specific filters.`
     );
   }
-  return items.length ? items[0] : null;
+  return items.length === 1 ? items[0] : null;
 }
 
-export function findTypeNamespaceOid(
-  typ: PgType,
-  ctx: ReqContext
-): number | null {
-  if (typ.typrelid && typ.typrelid !== 0) {
-    const cls = ctx.pg_classes.find((c) => c.oid === typ.typrelid);
-    return cls ? cls.relnamespace : null;
-  }
-  return null;
+function limitPageSize(first: number) {
+  // Ensure the requested page size is at least 1 and doesn't exceed the maximum
+  return Math.max(1, Math.min(first, MAX_PAGE_SIZE));
 }
