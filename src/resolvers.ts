@@ -501,6 +501,16 @@ export const resolvers = {
         cursorForNode: (n) => String(n.oid),
       });
     },
+    privileges: async (p: PgNamespace, args: { roleName: string }, ctx: ReqContext) => {
+      const result = await ctx.client.query(`
+        select pg_catalog.has_schema_privilege($1, $2, 'USAGE') AS usage
+      `, [args.roleName, p.nspname]);
+
+      return {
+        role: ctx.pg_roles.find((r) => r.rolname === args.roleName) || null,
+        usage: result.rows[0].usage,
+      };
+    },
   },
 
   Table: {
@@ -542,6 +552,22 @@ export const resolvers = {
         cursorForNode: (x) => String(x.oid),
       });
     },
+    privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext) => {
+      const result = await ctx.client.query(`
+        select pg_catalog.has_table_privilege($1, $2::oid, 'SELECT') AS select,
+               pg_catalog.has_table_privilege($1, $2::oid, 'INSERT') AS insert,
+               pg_catalog.has_table_privilege($1, $2::oid, 'UPDATE') AS update,
+               pg_catalog.has_table_privilege($1, $2::oid, 'DELETE') AS delete
+      `, [args.roleName, p.oid]);
+
+      return {
+        role: ctx.pg_roles.find((r) => r.rolname === args.roleName) || null,
+        select: result.rows[0].select,
+        insert: result.rows[0].insert,
+        update: result.rows[0].update,
+        delete: result.rows[0].delete,
+      };
+    },
   },
 
 
@@ -555,6 +581,20 @@ export const resolvers = {
       ctx.pg_classes.find((c) => c.oid === p.attrelid) || null,
     type: (p: PgAttribute, _a: any, ctx: ReqContext) =>
       ctx.pg_types.find((t) => t.oid === p.atttypid) || null,
+    privileges: async (p: PgAttribute, args: { roleName: string }, ctx: ReqContext) => {
+      const result = await ctx.client.query(`
+        select pg_catalog.has_column_privilege($1, $2::oid, $3, 'SELECT') AS select,
+               pg_catalog.has_column_privilege($1, $2::oid, $3, 'INSERT') AS insert,
+               pg_catalog.has_column_privilege($1, $2::oid, $3, 'UPDATE') AS update
+      `, [args.roleName, p.attrelid, p.attname]);
+
+      return {
+        role: ctx.pg_roles.find((r) => r.rolname === args.roleName) || null,
+        select: result.rows[0].select,
+        insert: result.rows[0].insert,
+        update: result.rows[0].update,
+      };
+    },
   },
 
   View: {
@@ -571,6 +611,16 @@ export const resolvers = {
         after: args.after,
         cursorForNode: (c) => String(c.attrelid),
       });
+    },
+    privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext) => {
+      const result = await ctx.client.query(`
+        select pg_catalog.has_table_privilege($1, $2::oid, 'SELECT') AS select
+      `, [args.roleName, p.oid]);
+
+      return {
+        role: ctx.pg_roles.find((r) => r.rolname === args.roleName) || null,
+        select: result.rows[0].select,
+      };
     },
   },
 
@@ -590,6 +640,16 @@ export const resolvers = {
         after: args.after,
         cursorForNode: (c) => String(c.attrelid),
       });
+    },
+    privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext) => {
+      const result = await ctx.client.query(`
+        select pg_catalog.has_table_privilege($1, $2::oid, 'SELECT') AS select
+      `, [args.roleName, p.oid]);
+
+      return {
+        role: ctx.pg_roles.find((r) => r.rolname === args.roleName) || null,
+        select: result.rows[0].select,
+      };
     },
   },
 

@@ -3581,7 +3581,235 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
+
+  // =====================================
+  // TEST: Fetch Schema Privileges
+  // =====================================
+  it("fetches schema privileges for a role", async () => {
+    await client.query("create role test_role with login;");
+    await client.query("create schema test_schema;");
+    await client.query("revoke usage on schema test_schema from test_role;");
+    await client.query("revoke usage on schema test_schema from public;");
+
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($roleName: String!) {
+          schema(schemaName: "test_schema") {
+            privileges(roleName: $roleName) {
+              role {
+                name
+              }
+              usage
+            }
+          }
+        }
+      `,
+      { roleName: "test_role" },
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        privileges: {
+          role: {
+            name: "test_role",
+          },
+          usage: false, // Assuming the role does not have usage privilege by default
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Table Privileges
+  // =====================================
+  it("fetches table privileges for a role", async () => {
+    await client.query("create role test_role with login;");
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($roleName: String!) {
+          table(schemaName: "test_schema", name: "test_table") {
+            privileges(roleName: $roleName) {
+              role {
+                name
+              }
+              select
+              insert
+              update
+              delete
+            }
+          }
+        }
+      `,
+      { roleName: "test_role" },
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        privileges: {
+          role: {
+            name: "test_role",
+          },
+          select: false, // Assuming the role does not have select privilege by default
+          insert: false, // Assuming the role does not have insert privilege by default
+          update: false, // Assuming the role does not have update privilege by default
+          delete: false, // Assuming the role does not have delete privilege by default
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch View Privileges
+  // =====================================
+  it("fetches view privileges for a role", async () => {
+    await client.query("create role test_role with login;");
+    await client.query("create schema test_schema;");
+    await client.query("create view test_schema.test_view as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($roleName: String!) {
+          view(schemaName: "test_schema", name: "test_view") {
+            privileges(roleName: $roleName) {
+              role {
+                name
+              }
+              select
+            }
+          }
+        }
+      `,
+      { roleName: "test_role" },
+      client
+    );
+
+    expect(data).toMatchObject({
+      view: {
+        privileges: {
+          role: {
+            name: "test_role",
+          },
+          select: false, // Assuming the role does not have select privilege by default
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Materialized View Privileges
+  // =====================================
+  it("fetches materialized view privileges for a role", async () => {
+    await client.query("create role test_role with login;");
+    await client.query("create schema test_schema;");
+    await client.query("create materialized view test_schema.test_matview as select 1 as id;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($roleName: String!) {
+          materializedView(schemaName: "test_schema", name: "test_matview") {
+            privileges(roleName: $roleName) {
+              role {
+                name
+              }
+              select
+            }
+          }
+        }
+      `,
+      { roleName: "test_role" },
+      client
+    );
+
+    expect(data).toMatchObject({
+      materializedView: {
+        privileges: {
+          role: {
+            name: "test_role",
+          },
+          select: false, // Assuming the role does not have select privilege by default
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Column Privileges
+  // =====================================
+  it("fetches column privileges for a role", async () => {
+    await client.query("create role test_role with login;");
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key, name text);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($roleName: String!) {
+          table(schemaName: "test_schema", name: "test_table") {
+            columns {
+              nodes {
+                name
+                privileges(roleName: $roleName) {
+                  role {
+                    name
+                  }
+                  select
+                  insert
+                  update
+                }
+              }
+            }
+          }
+        }
+      `,
+      { roleName: "test_role" },
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        columns: {
+          nodes: [
+            {
+              name: "id",
+              privileges: {
+                role: {
+                  name: "test_role",
+                },
+                select: false, // Assuming the role does not have select privilege by default
+                insert: false, // Assuming the role does not have insert privilege by default
+                update: false, // Assuming the role does not have update privilege by default
+              },
+            },
+            {
+              name: "name",
+              privileges: {
+                role: {
+                  name: "test_role",
+                },
+                select: false, // Assuming the role does not have select privilege by default
+                insert: false, // Assuming the role does not have insert privilege by default
+                update: false, // Assuming the role does not have update privilege by default
+              },
+            },
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
 });
-
-
-

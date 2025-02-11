@@ -112,6 +112,12 @@ type Schema implements Node {
   tables(first: Int, after: String, orderBy: TableOrderBy): TableConnection!
   views(first: Int, after: String): ViewConnection!
   materializedViews(first: Int, after: String): MaterializedViewConnection!
+  privileges(roleName: String!): SchemaPrivilege!
+}
+
+type SchemaPrivilege {
+  role: Role!
+  usage: Boolean
 }
 
 input TableFilter {
@@ -155,6 +161,15 @@ type Table implements Node {
   columns: ColumnConnection!
   indexes: IndexConnection!
   policies: PolicyConnection!
+  privileges(roleName: String!): TablePrivilege!
+}
+
+type TablePrivilege {
+  role: Role!
+  select: Boolean
+  insert: Boolean
+  update: Boolean
+  delete: Boolean
 }
 
 type ColumnConnection {
@@ -181,6 +196,14 @@ type Column implements Node {
   atttypid: Int!
   table: Table!
   type: PgType!
+  privileges(roleName: String!): ColumnPrivilege!
+}
+
+type ColumnPrivilege {
+  role: Role!
+  select: Boolean
+  insert: Boolean
+  update: Boolean
 }
 
 type ViewConnection {
@@ -205,6 +228,12 @@ type View implements Node {
   name: String!
   schema: Schema!
   columns: ColumnConnection!
+  privileges(roleName: String!): ViewPrivilege!
+}
+
+type ViewPrivilege {
+  role: Role!
+  select: Boolean
 }
 
 type MaterializedViewConnection {
@@ -232,6 +261,12 @@ type MaterializedView implements Node {
   """From pg_class.relispopulated"""
   populated: Boolean!
   columns: ColumnConnection!
+  privileges(roleName: String!): MaterializedViewPrivilege!
+}
+
+type MaterializedViewPrivilege {
+  role: Role!
+  select: Boolean
 }
 
 type IndexConnection {
