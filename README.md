@@ -1,4 +1,4 @@
-# supastructure [![Coverage Status](https://coveralls.io/repos/github/olirice/supastructure/badge.svg?branch=master)](https://coveralls.io/github/olirice/supastructure?branch=master)
+# supastructure
 
 
 **supastructure** is an experimental GraphQL API server and library. It connects to [Supabase](https://supabase.com/) projects, enabling fine-grained user defined queries of database structure. This project aims to assist AI developer platforms, such as [Bolt.new](https://bolt.new/) and [Lovable.dev](https://lovable.dev/), in extracting fine-grained context from Supabase projects to enhance LLM-generated responses to user prompts.
