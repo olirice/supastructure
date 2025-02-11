@@ -519,6 +519,7 @@ export const resolvers = {
     oid: (p: PgClass) => p.oid,
     name: (p: PgClass) => p.relname,
     relkind: (p: PgClass) => p.relkind,
+    rowLevelSecurityEnabled: (p: PgClass) => p.relrowsecurity || false,
     schema: (p: PgClass, _a: any, ctx: ReqContext) =>
       ctx.pg_namespaces.find((n) => n.oid === p.relnamespace) || null,
     columns: (p: PgClass, args: any, ctx: ReqContext) => {

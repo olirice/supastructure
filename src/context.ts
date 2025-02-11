@@ -94,6 +94,7 @@ export async function context(
           c.relnamespace,
           c.relkind,
           c.relispopulated,
+          c.relrowsecurity,
           n.nspname
         from pg_catalog.pg_class c
         join pg_catalog.pg_namespace n on c.relnamespace = n.oid

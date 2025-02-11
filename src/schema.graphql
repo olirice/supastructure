@@ -216,6 +216,7 @@ type Table implements Node {
   name: String!
   relkind: String!
   schema: Schema!
+  rowLevelSecurityEnabled: Boolean! # Added
 
   columns: ColumnConnection!
   indexes: IndexConnection!

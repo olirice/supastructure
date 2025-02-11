@@ -239,6 +239,7 @@ describe("GraphQL Server - Transactional Tests", () => {
             id
             oid
             name
+            rowLevelSecurityEnabled
           }
         }
       `,
@@ -251,6 +252,7 @@ describe("GraphQL Server - Transactional Tests", () => {
         id: expect.any(String),
         oid: tableOid,
         name: "test_table",
+        rowLevelSecurityEnabled: false,
       }),
     });
     expect(errors).toBeUndefined();
@@ -3098,6 +3100,46 @@ describe("GraphQL Server - Transactional Tests", () => {
         { name: expect.any(String) },
         { name: expect.any(String) }
       ]
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Row Level Security Status
+  // =====================================
+  it("returns correct RLS status for tables", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.table_with_rls (id serial primary key);");
+    await client.query("create table test_schema.table_without_rls (id serial primary key);");
+    await client.query("alter table test_schema.table_with_rls enable row level security;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table_with_rls: table(schemaName: "test_schema", name: "table_with_rls") {
+            name
+            rowLevelSecurityEnabled
+          }
+          table_without_rls: table(schemaName: "test_schema", name: "table_without_rls") {
+            name
+            rowLevelSecurityEnabled
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table_with_rls: {
+        name: "table_with_rls",
+        rowLevelSecurityEnabled: true
+      },
+      table_without_rls: {
+        name: "table_without_rls", 
+        rowLevelSecurityEnabled: false
+      }
     });
     expect(errors).toBeUndefined();
   });

@@ -19,6 +19,7 @@ export const PgClassSchema = z.object({
   relnamespace: z.number().int(),
   relkind: z.string().length(1),
   relispopulated: z.boolean().optional(), // for mat views
+  relrowsecurity: z.boolean(), // Added
 });
 export type PgClass = z.infer<typeof PgClassSchema>;
 
