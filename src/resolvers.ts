@@ -316,134 +316,133 @@ export const resolvers = {
 
   RoleConnection: {
     edges: (p: { edges: Array<{ node: PgRole }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgRole }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgRole }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgRole }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgRole }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   SchemaConnection: {
     edges: (p: { edges: Array<{ node: PgNamespace }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgNamespace }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgNamespace }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgNamespace }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgNamespace }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   TableConnection: {
     edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   ColumnConnection: {
     edges: (p: { edges: Array<{ node: PgAttribute }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgAttribute }) => x.node.attnum, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgAttribute }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgAttribute }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgAttribute }) => x.node.attnum, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   ViewConnection: {
     edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   MaterializedViewConnection: {
     edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   IndexConnection: {
     edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgClass }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   TriggerConnection: {
-    edges: (p: { edges: Array<{ node: PgTrigger }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgTrigger }) => x.node.oid, "ASC"),
+    edges: (p: { edges: Array<{ node: PgTrigger }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgTrigger }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgTrigger }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgTrigger }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   PolicyConnection: {
     edges: (p: { edges: Array<{ node: PgPolicy }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgPolicy }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgPolicy }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgPolicy }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgPolicy }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   PgTypeConnection: {
     edges: (p: { edges: Array<{ node: PgType }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: PgType }) => x.node.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: PgType }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgType }>; first: number }) =>
-      sortItems(p.edges, (x: { node: PgType }) => x.node.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   SchemaPrivilegeConnection: {
     edges: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: { role: PgRole } }) => x.node.role.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: { role: PgRole } }>; first: number }) =>
-      sortItems(p.edges, (x: { node: { role: PgRole } }) => x.node.role.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   TablePrivilegeConnection: {
     edges: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) =>
-      sortItems(p.edges, (x: { node: { role: PgRole } }) => x.node.role.oid, "ASC"),
+      p.edges,
     pageInfo: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: { role: PgRole } }>; first: number }) =>
-      sortItems(p.edges, (x: { node: { role: PgRole } }) => x.node.role.oid, "ASC").map((e) => e.node),
+      p.edges.map((e) => e.node),
   },
 
   ////////////////////////////////////////

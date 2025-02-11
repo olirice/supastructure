@@ -82,6 +82,7 @@ export async function context(
         select oid, nspname, nspowner
         from pg_catalog.pg_namespace
         where nspname not in ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')
+        order by nspname asc
       `);
     const pg_namespaces = nsRows.rows.map((r) => PgNamespaceSchema.parse(r));
 
@@ -97,6 +98,7 @@ export async function context(
         from pg_catalog.pg_class c
         join pg_catalog.pg_namespace n on c.relnamespace = n.oid
         where n.nspname not in ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')
+        order by n.nspname, c.relname
       `);
     const pg_classes = classRows.rows.map((r) => PgClassSchema.parse(r));
 
@@ -115,6 +117,7 @@ export async function context(
         where a.attnum >= 1
           and not a.attisdropped
           and n.nspname not in ('pg_toast','pg_catalog','information_schema','pg_temp')
+        order by n.nspname, c.relname, a.attnum
       `);
     const pg_attributes = attrRows.rows.map((r) => PgAttributeSchema.parse(r));
 
@@ -130,6 +133,7 @@ export async function context(
         join pg_catalog.pg_namespace n on c.relnamespace = n.oid
         where not t.tgisinternal
           and n.nspname not in ('pg_toast','pg_catalog','information_schema','pg_temp')
+        order by n.nspname, t.tgname
       `);
     const pg_triggers = trigRows.rows.map((r) => PgTriggerSchema.parse(r));
 
@@ -156,6 +160,7 @@ export async function context(
         p.polqual,
         p.polwithcheck,
         n.nspname
+      order by n.nspname, p.polname
       `);
     const pg_policies = policyRows.rows.map((r) => PgPolicySchema.parse(r));
 
@@ -171,6 +176,7 @@ export async function context(
         n.nspname
       from pg_catalog.pg_type t
       join pg_catalog.pg_namespace n on t.typnamespace = n.oid
+      order by n.nspname, t.typname
       `);
     const pg_types = typeRows.rows.map((r) => PgTypeSchema.parse(r));
 
@@ -178,12 +184,13 @@ export async function context(
     const enumRows = await client.query(`
       select 
         e.enumtypid,
-        array_agg(e.enumlabel ORDER BY e.enumsortorder) as enumlabels,
+        array_agg(e.enumlabel::text order by e.enumsortorder) as enumlabels,
         n.nspname
       from pg_catalog.pg_enum e
       join pg_catalog.pg_type t on t.oid = e.enumtypid
       join pg_catalog.pg_namespace n on n.oid = t.typnamespace
-      group by e.enumtypid, n.nspname
+      group by e.enumtypid, n.nspname, t.typname
+      order by n.nspname, t.typname
     `);
     const pg_enums = enumRows.rows.map((r) => PgEnumSchema.parse(r));
 
@@ -200,6 +207,7 @@ export async function context(
       join pg_catalog.pg_class c on c.oid = i.indexrelid
       join pg_catalog.pg_am am on c.relam = am.oid
       join pg_catalog.pg_namespace n on c.relnamespace = n.oid
+      order by pg_get_indexdef(i.indexrelid)
       `);
     const pg_index = indexRows.rows.map((r) => PgIndexSchema.parse(r));
 
