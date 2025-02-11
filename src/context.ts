@@ -176,11 +176,15 @@ export async function context(
 
     // enums
     const enumRows = await client.query(`
-      select e.enumtypid, e.enumlabel, n.nspname
+      select 
+        e.enumtypid,
+        array_agg(e.enumlabel ORDER BY e.enumsortorder) as enumlabels,
+        n.nspname
       from pg_catalog.pg_enum e
       join pg_catalog.pg_type t on t.oid = e.enumtypid
       join pg_catalog.pg_namespace n on n.oid = t.typnamespace
-      `);
+      group by e.enumtypid, n.nspname
+    `);
     const pg_enums = enumRows.rows.map((r) => PgEnumSchema.parse(r));
 
     // index

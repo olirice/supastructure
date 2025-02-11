@@ -61,7 +61,7 @@ export type PgType = z.infer<typeof PgTypeSchema>;
 
 export const PgEnumSchema = z.object({
   enumtypid: z.number().int(),
-  enumlabel: z.string(),
+  enumlabels: z.array(z.string()), // Changed from enumlabel to enumlabels array
 });
 export type PgEnum = z.infer<typeof PgEnumSchema>;
 

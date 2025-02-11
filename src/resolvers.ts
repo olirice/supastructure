@@ -708,8 +708,8 @@ export const resolvers = {
     name: (p: PgType) => p.typname,
     kind: () => "ENUM",
     enumVariants: (p: PgType, _a: unknown, ctx: ReqContext) => {
-      const relevant = ctx.pg_enums.filter((e) => e.enumtypid === p.oid);
-      return relevant.map((e) => e.enumlabel);
+      const relevant = ctx.pg_enums.find((e) => e.enumtypid === p.oid);
+      return relevant ? relevant.enumlabels : [];
     },
   },
   CompositeType: {
