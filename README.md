@@ -69,13 +69,16 @@ Known things that need to change:
 ```graphql
 # src/schema.graphql
 
-########################################
-# Node + Shared
-########################################
+"""
+Represents objects that can be looked up by a global ID
+"""
 interface Node {
   id: ID!
 }
 
+"""
+Information about pagination in a connection
+"""
 type PageInfo {
   hasNextPage: Boolean!
   endCursor: String
@@ -86,36 +89,20 @@ enum SortDirection {
   DESC
 }
 
-########################################
-# Queries
-########################################
 type Query {
   database: Database!
-
-  # single-entity queries
-  schema(oid: Int, schemaName: String, name: String, id: ID): Schema
+  schema(oid: Int, schemaName: String, id: ID): Schema
   table(oid: Int, schemaName: String, name: String, id: ID): Table
   view(oid: Int, schemaName: String, name: String, id: ID): View
-  materializedView(
-    oid: Int
-    schemaName: String
-    name: String
-    id: ID
-  ): MaterializedView
+  materializedView(oid: Int, schemaName: String, name: String, id: ID): MaterializedView
   index(oid: Int, schemaName: String, name: String, id: ID): Index
   trigger(oid: Int, schemaName: String, name: String, id: ID): Trigger
   policy(oid: Int, schemaName: String, name: String, id: ID): Policy
   type(oid: Int, schemaName: String, name: String, id: ID): PgType
-
-  # role
   role(oid: Int, name: String, id: ID): Role
-
   node(id: ID!): Node
 }
 
-########################################
-# Role
-########################################
 type RoleConnection {
   edges: [RoleEdge!]!
   pageInfo: PageInfo!
@@ -127,27 +114,30 @@ type RoleEdge {
   cursor: String!
 }
 
+"""
+Database role from pg_roles
+"""
 type Role implements Node {
   id: ID!
+  """From pg_roles.oid"""
   oid: Int!
+  """From pg_roles.rolname"""
   name: String!
+  """From pg_roles.rolsuper"""
   isSuperuser: Boolean
 }
 
-########################################
-# Database
-########################################
+"""
+Database from pg_database
+"""
 type Database implements Node {
   id: ID!
+  """From pg_database.oid"""
   oid: Int!
+  """From pg_database.datname"""
   name: String!
-
-  schemas(
-    first: Int
-    after: String
-    filter: SchemaFilter
-    orderBy: SchemaOrderBy
-  ): SchemaConnection!
+  schemas(first: Int, after: String, orderBy: SchemaOrderBy): SchemaConnection!
+  privileges(roleName: String!): DatabasePrivilege!
 }
 
 input SchemaFilter {
@@ -165,26 +155,11 @@ input SchemaOrderBy {
   direction: SortDirection
 }
 
-# for privileges
 type DatabasePrivilege {
   role: Role!
   connect: Boolean
 }
 
-type DatabasePrivilegeConnection {
-  edges: [DatabasePrivilegeEdge!]!
-  pageInfo: PageInfo!
-  nodes: [DatabasePrivilege!]!
-}
-
-type DatabasePrivilegeEdge {
-  node: DatabasePrivilege!
-  cursor: String!
-}
-
-########################################
-# Schema + Privileges
-########################################
 type SchemaConnection {
   edges: [SchemaEdge!]!
   pageInfo: PageInfo!
@@ -196,53 +171,26 @@ type SchemaEdge {
   cursor: String!
 }
 
-# dedicated privilege for a schema
-# e.g. usage, create
-# also references a role
+"""
+Schema/namespace from pg_namespace
+"""
+type Schema implements Node {
+  id: ID!
+  """From pg_namespace.oid"""
+  oid: Int!
+  """From pg_namespace.nspname"""
+  name: String!
+  tables(first: Int, after: String, orderBy: TableOrderBy): TableConnection!
+  views(first: Int, after: String): ViewConnection!
+  materializedViews(first: Int, after: String): MaterializedViewConnection!
+  privileges(roleName: String!): SchemaPrivilege!
+}
 
 type SchemaPrivilege {
   role: Role!
   usage: Boolean
-  create: Boolean
 }
 
-type SchemaPrivilegeConnection {
-  edges: [SchemaPrivilegeEdge!]!
-  pageInfo: PageInfo!
-  nodes: [SchemaPrivilege!]!
-}
-
-type SchemaPrivilegeEdge {
-  node: SchemaPrivilege!
-  cursor: String!
-}
-
-type Schema implements Node {
-  id: ID!
-  oid: Int!
-  name: String!
-
-  tables(
-    first: Int
-    after: String
-    filter: TableFilter
-    orderBy: TableOrderBy
-  ): TableConnection!
-  views(first: Int, after: String): ViewConnection!
-  materializedViews(first: Int, after: String): MaterializedViewConnection!
-  indexes(first: Int, after: String): IndexConnection!
-  triggers(first: Int, after: String): TriggerConnection!
-  policies(first: Int, after: String): PolicyConnection!
-  types(first: Int, after: String): PgTypeConnection!
-
-  # privileges
-  activePrivileges: SchemaPrivilegeConnection!
-  defaultPrivileges: SchemaPrivilegeConnection!
-}
-
-########################################
-# Table + Privileges
-########################################
 input TableFilter {
   name: String
   oid: Int
@@ -269,8 +217,23 @@ type TableEdge {
   cursor: String!
 }
 
-# table-specific privileges
-# e.g. select, insert, update, delete
+"""
+Table from pg_class where relkind = 'r'
+"""
+type Table implements Node {
+  id: ID!
+  """From pg_class.oid"""
+  oid: Int!
+  """From pg_class.relname"""
+  name: String!
+  schema: Schema!
+  """From pg_class.relrowsecurity"""
+  rowLevelSecurityEnabled: Boolean!
+  columns: ColumnConnection!
+  indexes: IndexConnection!
+  policies: PolicyConnection!
+  privileges(roleName: String!): TablePrivilege!
+}
 
 type TablePrivilege {
   role: Role!
@@ -280,36 +243,6 @@ type TablePrivilege {
   delete: Boolean
 }
 
-type TablePrivilegeConnection {
-  edges: [TablePrivilegeEdge!]!
-  pageInfo: PageInfo!
-  nodes: [TablePrivilege!]!
-}
-
-type TablePrivilegeEdge {
-  node: TablePrivilege!
-  cursor: String!
-}
-
-type Table implements Node {
-  id: ID!
-  oid: Int!
-  name: String!
-  relkind: String!
-  schema: Schema!
-
-  columns: ColumnConnection!
-  indexes: IndexConnection!
-  policies: PolicyConnection!
-
-  # privileges
-  activePrivileges: TablePrivilegeConnection!
-  defaultPrivileges: TablePrivilegeConnection!
-}
-
-########################################
-# Columns
-########################################
 type ColumnConnection {
   edges: [ColumnEdge!]!
   pageInfo: PageInfo!
@@ -321,18 +254,29 @@ type ColumnEdge {
   cursor: String!
 }
 
+"""
+Column from pg_attribute
+"""
 type Column implements Node {
   id: ID!
+  """From pg_attribute.attname"""
   name: String!
+  """From pg_attribute.attnum"""
   attnum: Int!
+  """From pg_attribute.atttypid"""
   atttypid: Int!
   table: Table!
   type: PgType!
+  privileges(roleName: String!): ColumnPrivilege!
 }
 
-########################################
-# View + Privileges
-########################################
+type ColumnPrivilege {
+  role: Role!
+  select: Boolean
+  insert: Boolean
+  update: Boolean
+}
+
 type ViewConnection {
   edges: [ViewEdge!]!
   pageInfo: PageInfo!
@@ -344,24 +288,25 @@ type ViewEdge {
   cursor: String!
 }
 
-# We'll reuse table-like privileges for view
-# or define a separate if you prefer, but let's reuse TablePrivilege.
-
+"""
+View from pg_class where relkind = 'v'
+"""
 type View implements Node {
   id: ID!
+  """From pg_class.oid"""
   oid: Int!
+  """From pg_class.relname"""
   name: String!
-  relkind: String!
   schema: Schema!
-
-  # privileges
-  activePrivileges: TablePrivilegeConnection!
-  defaultPrivileges: TablePrivilegeConnection!
+  columns: ColumnConnection!
+  privileges(roleName: String!): ViewPrivilege!
 }
 
-########################################
-# MaterializedView + Privileges
-########################################
+type ViewPrivilege {
+  role: Role!
+  select: Boolean
+}
+
 type MaterializedViewConnection {
   edges: [MaterializedViewEdge!]!
   pageInfo: PageInfo!
@@ -373,22 +318,28 @@ type MaterializedViewEdge {
   cursor: String!
 }
 
+"""
+Materialized view from pg_class where relkind = 'm'
+"""
 type MaterializedView implements Node {
   id: ID!
+  """From pg_class.oid"""
   oid: Int!
+  """From pg_class.relname"""
   name: String!
-  relkind: String!
   schema: Schema!
+  indexes: IndexConnection!
+  """From pg_class.relispopulated"""
   populated: Boolean!
-
-  # privileges
-  activePrivileges: TablePrivilegeConnection!
-  defaultPrivileges: TablePrivilegeConnection!
+  columns: ColumnConnection!
+  privileges(roleName: String!): MaterializedViewPrivilege!
 }
 
-########################################
-# Index
-########################################
+type MaterializedViewPrivilege {
+  role: Role!
+  select: Boolean
+}
+
 type IndexConnection {
   edges: [IndexEdge!]!
   pageInfo: PageInfo!
@@ -400,20 +351,23 @@ type IndexEdge {
   cursor: String!
 }
 
+"""
+Index from pg_class where relkind = 'i' joined with pg_index
+"""
 type Index implements Node {
   id: ID!
+  """From pg_class.oid"""
   oid: Int!
+  """From pg_class.relname"""
   name: String!
-  relkind: String!
   schema: Schema!
   table: Table!
+  """From pg_am.amname"""
   accessMethod: String!
+  """From pg_get_indexdef()"""
   definition: String
 }
 
-########################################
-# Trigger
-########################################
 type TriggerConnection {
   edges: [TriggerEdge!]!
   pageInfo: PageInfo!
@@ -425,16 +379,18 @@ type TriggerEdge {
   cursor: String!
 }
 
+"""
+Trigger from pg_trigger
+"""
 type Trigger implements Node {
   id: ID!
+  """From pg_trigger.oid"""
   oid: Int!
+  """From pg_trigger.tgname"""
   name: String!
   table: Table!
 }
 
-########################################
-# Policy
-########################################
 type PolicyConnection {
   edges: [PolicyEdge!]!
   pageInfo: PageInfo!
@@ -446,25 +402,36 @@ type PolicyEdge {
   cursor: String!
 }
 
+"""
+Row level security policy from pg_policy
+"""
 type Policy implements Node {
   id: ID!
+  """From pg_policy.oid"""
   oid: Int!
+  """From pg_policy.polname"""
   name: String!
   table: Table!
+  """From pg_policy.polcmd"""
   command: String
+  """From pg_policy.polroles"""
   roles: [String!]
+  """From pg_get_expr(polqual, polrelid)"""
   usingExpr: String
+  """From pg_get_expr(polwithcheck, polrelid)"""
   withCheck: String
 }
 
-########################################
-# PgType + union
-########################################
-
+"""
+Common interface for all PostgreSQL types
+"""
 interface PgTypeInterface implements Node {
   id: ID!
+  """From pg_type.oid"""
   oid: Int!
+  """From pg_type.typname"""
   name: String!
+  """Derived from pg_type.typtype"""
   kind: TypeKind!
 }
 
@@ -488,24 +455,23 @@ type PgTypeEdge {
   cursor: String!
 }
 
-union PgType =
-    DomainType
-  | ScalarType
-  | EnumType
-  | ArrayType
-  | CompositeType
-  | UnknownType
+union PgType = DomainType | ScalarType | EnumType | ArrayType | CompositeType | UnknownType
 
-# domain
+"""
+Domain type from pg_type where typtype = 'd'
+"""
 type DomainType implements PgTypeInterface & Node {
   id: ID!
   oid: Int!
   name: String!
   kind: TypeKind!
+  """References pg_type.typbasetype"""
   baseType: PgType
 }
 
-# scalar
+"""
+Base scalar type from pg_type where typtype = 'b'
+"""
 type ScalarType implements PgTypeInterface & Node {
   id: ID!
   oid: Int!
@@ -513,40 +479,52 @@ type ScalarType implements PgTypeInterface & Node {
   kind: TypeKind!
 }
 
-# enum
+"""
+Enum type from pg_type where typtype = 'e'
+"""
 type EnumType implements PgTypeInterface & Node {
   id: ID!
   oid: Int!
   name: String!
   kind: TypeKind!
+  """From pg_enum.enumlabel values"""
   enumVariants: [String!]!
 }
 
-# array
+"""
+Array type from pg_type where typtype = 'b' and typelem != 0
+"""
 type ArrayType implements PgTypeInterface & Node {
   id: ID!
   oid: Int!
   name: String!
   kind: TypeKind!
+  """References pg_type.typelem"""
   elementType: PgType
 }
 
 type CompositeField {
   name: String!
   type: PgType!
+  """From pg_attribute.attnotnull"""
   notNull: Boolean
 }
 
-# composite
+"""
+Composite type from pg_type where typtype = 'c'
+"""
 type CompositeType implements PgTypeInterface & Node {
   id: ID!
   oid: Int!
   name: String!
   kind: TypeKind!
+  """Composite fields from pg_attribute"""
   fields: [CompositeField!]!
 }
 
-# fallback / unknown
+"""
+Unknown/unsupported type
+"""
 type UnknownType implements PgTypeInterface & Node {
   id: ID!
   oid: Int!
