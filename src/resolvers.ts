@@ -423,27 +423,6 @@ export const resolvers = {
       p.edges.map((e) => e.node),
   },
 
-  SchemaPrivilegeConnection: {
-    edges: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) =>
-      p.edges,
-    pageInfo: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) => ({
-      ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
-    }),
-    nodes: (p: { edges: Array<{ node: { role: PgRole } }>; first: number }) =>
-      p.edges.map((e) => e.node),
-  },
-
-  TablePrivilegeConnection: {
-    edges: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) =>
-      p.edges,
-    pageInfo: (p: { edges: Array<{ node: { role: PgRole } }>; first: number; pageInfo: any }) => ({
-      ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
-    }),
-    nodes: (p: { edges: Array<{ node: { role: PgRole } }>; first: number }) =>
-      p.edges.map((e) => e.node),
-  },
 
   ////////////////////////////////////////
   // Field resolvers: Database, Schema, Table, etc.
