@@ -219,7 +219,7 @@ export async function context(
       `);
     const pg_roles = roleRows.rows.map((r) => PgRoleSchema.parse(r));
 
-    await releaseClient(client);
+    //await releaseClient(client);
 
     return {
       client,

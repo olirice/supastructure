@@ -73,6 +73,7 @@ describe("GraphQL Server - Transactional Tests", () => {
 
   afterEach(async () => {
     // Roll back the transaction so tests remain isolated
+    await client.query("rollback;"); // Start a transaction
     client.release();
   });
 
@@ -3458,8 +3459,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     `);
     const columnOid = result.rows[0].attrelid;
     const columnId = buildGlobalId("Column", columnOid);
-    console.log(columnId);
-    console.log(columnOid);
 
     const { data, errors } = await executeTestQuery(
       testServer,
@@ -3525,6 +3524,59 @@ describe("GraphQL Server - Transactional Tests", () => {
         oid: roleOid,
         name: "postgres",
       }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Fetch Database Privileges
+  // =====================================
+  it("fetches database privileges for a role", async () => {
+    await client.query("revoke connect on database postgres from public;");
+    await client.query("create role test_role_no_connect;");
+    await client.query("revoke connect on database postgres from test_role_no_connect;");
+    await client.query("create role test_role_connect;");
+    await client.query("grant connect on database postgres to test_role_connect;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          database {
+            no_connect: privileges(roleName: "test_role_no_connect") {
+              role {
+                name
+              }
+              connect
+            }
+            connect: privileges(roleName: "test_role_connect") {
+              role {
+                name
+              }
+              connect
+            }
+          }
+        }
+      `,
+      { },
+      client
+    );
+
+    expect(data).toMatchObject({
+      database: {
+        no_connect: {
+          role: {
+            name: "test_role_no_connect",
+          },
+          connect: false,
+        },
+        connect: {
+          role: {
+            name: "test_role_connect",
+          },
+          connect: true,
+        },
+      },
     });
     expect(errors).toBeUndefined();
   });

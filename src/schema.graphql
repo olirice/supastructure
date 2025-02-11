@@ -66,6 +66,7 @@ type Database implements Node {
   """From pg_database.datname"""
   name: String!
   schemas(first: Int, after: String, orderBy: SchemaOrderBy): SchemaConnection!
+  privileges(roleName: String!): DatabasePrivilege!
 }
 
 input SchemaFilter {

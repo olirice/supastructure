@@ -301,9 +301,7 @@ export const resolvers = {
         case "PgType":
           return ctx.pg_types.find((t) => t.oid === info.oid) || null;
         case "Column":
-          const x = ctx.pg_attributes.find((t) => t.attrelid === info.oid) || null;
-          console.log(x)
-          return x;
+          return ctx.pg_attributes.find((t) => t.attrelid === info.oid) || null;
         case "Role":
           return ctx.pg_roles.find((r) => r.oid === info.oid) || null;
         default:
@@ -448,6 +446,16 @@ export const resolvers = {
         after: args.after,
         cursorForNode: (n) => String(n.oid),
       });
+    },
+    privileges: async (p: PgDatabase, args: { roleName: string }, ctx: ReqContext) => {
+      const result = await ctx.client.query(`
+        select pg_catalog.has_database_privilege($1, $2, 'connect') AS connect
+      `, [args.roleName, p.datname]);
+
+      return {
+        role: ctx.pg_roles.find((r: PgRole) => r.rolname === args.roleName) || null,
+        connect: result.rows[0].connect,
+      };
     },
   },
 
