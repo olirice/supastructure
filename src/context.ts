@@ -92,7 +92,8 @@ export async function context(
           c.relname,
           c.relnamespace,
           c.relkind,
-          c.relispopulated
+          c.relispopulated,
+          n.nspname
         from pg_catalog.pg_class c
         join pg_catalog.pg_namespace n on c.relnamespace = n.oid
         where n.nspname not in ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')
@@ -106,7 +107,8 @@ export async function context(
           a.attname,
           a.atttypid,
           a.attnum,
-          a.attnotnull
+          a.attnotnull,
+          n.nspname
         from pg_catalog.pg_attribute a
         join pg_catalog.pg_class c on a.attrelid = c.oid
         join pg_catalog.pg_namespace n on c.relnamespace = n.oid
@@ -121,7 +123,8 @@ export async function context(
         select
           t.oid,
           t.tgname,
-          t.tgrelid
+          t.tgrelid,
+          n.nspname
         from pg_catalog.pg_trigger t
         join pg_catalog.pg_class c on t.tgrelid = c.oid
         join pg_catalog.pg_namespace n on c.relnamespace = n.oid
@@ -132,49 +135,67 @@ export async function context(
 
     // policies
     const policyRows = await client.query(`
-        select
-          p.oid, p.polname, p.polrelid,
-          p.polcmd,
-          coalesce(array_agg(r.rolname::text) filter (where r.rolname is not null), '{}') as polroles,
-          pg_get_expr(p.polqual, p.polrelid) as polqual,
-          pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck
-        from pg_catalog.pg_policy p
-        left join pg_catalog.pg_roles r on r.oid = any(p.polroles)
-        group by p.oid, p.polname, p.polrelid, p.polcmd, p.polqual, p.polwithcheck
+      select
+        p.oid,
+        p.polname,
+        p.polrelid,
+        p.polcmd,
+        coalesce(array_agg(r.rolname::text) filter (where r.rolname is not null), '{}') as polroles,
+        pg_get_expr(p.polqual, p.polrelid) as polqual,
+        pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck,
+        n.nspname
+      from pg_catalog.pg_policy p
+      join pg_catalog.pg_class c on c.oid = p.polrelid
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      left join pg_catalog.pg_roles r on r.oid = any(p.polroles)
+      group by
+        p.oid,
+        p.polname,
+        p.polrelid,
+        p.polcmd,
+        p.polqual,
+        p.polwithcheck,
+        n.nspname
       `);
     const pg_policies = policyRows.rows.map((r) => PgPolicySchema.parse(r));
 
     // types
     const typeRows = await client.query(`
-        select
-          t.oid,
-          t.typname,
-          t.typtype,
-          t.typbasetype,
-          t.typelem,
-          t.typrelid
-        from pg_catalog.pg_type t
+      select
+        t.oid,
+        t.typname,
+        t.typtype,
+        t.typbasetype,
+        t.typelem,
+        t.typrelid,
+        n.nspname
+      from pg_catalog.pg_type t
+      join pg_catalog.pg_namespace n on t.typnamespace = n.oid
       `);
     const pg_types = typeRows.rows.map((r) => PgTypeSchema.parse(r));
 
     // enums
     const enumRows = await client.query(`
-        select enumtypid, enumlabel
-        from pg_catalog.pg_enum
+      select e.enumtypid, e.enumlabel, n.nspname
+      from pg_catalog.pg_enum e
+      join pg_catalog.pg_type t on t.oid = e.enumtypid
+      join pg_catalog.pg_namespace n on n.oid = t.typnamespace
       `);
     const pg_enums = enumRows.rows.map((r) => PgEnumSchema.parse(r));
 
     // index
     const indexRows = await client.query(`
-        select
-          i.indexrelid,
-          i.indrelid,
-          i.indkey::text,
-          pg_get_indexdef(i.indexrelid) as indexdef,
-          am.amname as indexam
-        from pg_catalog.pg_index i
-        join pg_catalog.pg_class c on c.oid = i.indexrelid
-        join pg_catalog.pg_am am on c.relam = am.oid
+      select
+        i.indexrelid,
+        i.indrelid,
+        i.indkey::text,
+        pg_get_indexdef(i.indexrelid) as indexdef,
+        am.amname as indexam,
+        n.nspname
+      from pg_catalog.pg_index i
+      join pg_catalog.pg_class c on c.oid = i.indexrelid
+      join pg_catalog.pg_am am on c.relam = am.oid
+      join pg_catalog.pg_namespace n on c.relnamespace = n.oid
       `);
     const pg_index = indexRows.rows.map((r) => PgIndexSchema.parse(r));
 

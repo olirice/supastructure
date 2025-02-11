@@ -94,7 +94,7 @@ export function singleResultOrError<T>(
   return items.length === 1 ? items[0] : null;
 }
 
-function limitPageSize(first: number) {
+export function limitPageSize(first: number) {
   // Ensure the requested page size is at least 1 and doesn't exceed the maximum
   return Math.max(1, Math.min(first, MAX_PAGE_SIZE));
 }
