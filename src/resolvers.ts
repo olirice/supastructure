@@ -648,14 +648,7 @@ export const resolvers = {
 
   PgType: {
     __resolveType(obj: PgType) {
-      if (obj.typtype === "d") return "DomainType";
-      if (obj.typtype === "e") return "EnumType";
-      if (obj.typtype === "c") return "CompositeType";
-      if (obj.typtype === "b") {
-        if (obj.typelem && obj.typelem !== 0) return "ArrayType";
-        return "ScalarType";
-      }
-      return "UnknownType";
+      return resolvePgType(obj);
     },
   },
 
@@ -737,7 +730,7 @@ export const resolvers = {
       if (obj.tgname) return "Trigger";
       if (obj.polname) return "Policy";
       if (obj.typname !== undefined) {
-        return "PgType";
+        return resolvePgType(obj);
       }
       if (obj.attrelid !== undefined && obj.attname !== undefined) {
         return "Column";
@@ -748,4 +741,16 @@ export const resolvers = {
       return null;
     },
   },
+}
+
+
+function resolvePgType(obj: PgType): string {
+  if (obj.typtype === 'd') return 'DomainType';
+  if (obj.typtype === 'e') return 'EnumType'; 
+  if (obj.typtype === 'c') return 'CompositeType';
+  if (obj.typtype === 'b') {
+    if (obj.typelem && obj.typelem !== 0) return 'ArrayType';
+    return 'ScalarType';
+  }
+  return 'UnknownType';
 }
