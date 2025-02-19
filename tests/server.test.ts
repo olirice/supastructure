@@ -3530,6 +3530,14 @@ describe("GraphQL Server - Transactional Tests", () => {
               name
               attnum
               atttypid
+              table {
+                name
+              }
+              type {
+                ... on PgTypeInterface {
+                  name
+                }
+              }
             }
           }
         }
@@ -3544,6 +3552,12 @@ describe("GraphQL Server - Transactional Tests", () => {
         name: "some_unique_name",
         attnum: 1,
         atttypid: expect.any(Number),
+        table: expect.objectContaining({
+          name: "test_table",
+        }),
+        type: expect.objectContaining({
+          name: "int4",
+        }),
       }),
     });
     expect(errors).toBeUndefined();

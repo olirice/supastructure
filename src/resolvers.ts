@@ -312,18 +312,6 @@ export const resolvers = {
   ////////////////////////////////////////
   // Connection resolvers (rename top-level arrays to "nodes")
   ////////////////////////////////////////
-
-  RoleConnection: {
-    edges: (p: { edges: Array<{ node: PgRole }>; first: number; pageInfo: any }) =>
-      p.edges,
-    pageInfo: (p: { edges: Array<{ node: PgRole }>; first: number; pageInfo: any }) => ({
-      ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
-    }),
-    nodes: (p: { edges: Array<{ node: PgRole }>; first: number }) =>
-      p.edges.map((e) => e.node),
-  },
-
   SchemaConnection: {
     edges: (p: { edges: Array<{ node: PgNamespace }>; first: number; pageInfo: any }) =>
       p.edges,

@@ -32,17 +32,6 @@ type Query {
   node(id: ID!): Node
 }
 
-type RoleConnection {
-  edges: [RoleEdge!]!
-  pageInfo: PageInfo!
-  nodes: [Role!]!
-}
-
-type RoleEdge {
-  node: Role!
-  cursor: String!
-}
-
 """
 Database role from pg_roles
 """
