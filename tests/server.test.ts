@@ -6,6 +6,7 @@ import { resolvers } from "../src/resolvers.js";
 import { context, ReqContext, DbConfig } from "../src/context.js";
 import { dbConfig } from "../src/index.js";
 import { buildGlobalId } from "../src/generic.js";
+import { table } from "console";
 
 // Constants
 const pool = new Pool(dbConfig);
@@ -2342,6 +2343,86 @@ describe("GraphQL Server - Transactional Tests", () => {
   });
 
   // =====================================
+  // TEST: Order Schemas by oid
+  // =====================================
+  it("orders schemas by name", async () => {
+    await client.query("drop schema public cascade;");
+    await client.query("create schema schema_c;");
+    await client.query("create schema schema_b;");
+    await client.query("create schema schema_a;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          database {
+            schemas(orderBy: { field: OID, direction: ASC }) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      database: {
+        schemas: {
+          nodes: [
+            { name: "schema_c" },
+            { name: "schema_b" },
+            { name: "schema_a" },
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Order Tables by OID
+  // =====================================
+  it("orders tables by name", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.table_b (id serial primary key);");
+    await client.query("create table test_schema.table_c (id serial primary key);");
+    await client.query("create table test_schema.table_a (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            tables(orderBy: { field: OID, direction: ASC }) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        tables: {
+          nodes: [
+            { name: "table_b" },
+            { name: "table_c" },
+            { name: "table_a" },
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
   // TEST: Order Views by Name
   // =====================================
   it("orders views by name", async () => {
@@ -2697,6 +2778,9 @@ describe("GraphQL Server - Transactional Tests", () => {
               id
               oid
               name
+              table {
+                name
+              }
             }
           }
         }
@@ -2710,6 +2794,9 @@ describe("GraphQL Server - Transactional Tests", () => {
         id: expect.any(String),
         oid: triggerOid,
         name: "test_trigger",
+        table: {
+          name: "test_table",
+        }
       }),
     });
     expect(errors).toBeUndefined();
@@ -2745,6 +2832,9 @@ describe("GraphQL Server - Transactional Tests", () => {
               id
               oid
               name
+              table {
+                name
+              }
             }
           }
         }
@@ -2758,6 +2848,9 @@ describe("GraphQL Server - Transactional Tests", () => {
         id: expect.any(String),
         oid: policyOid,
         name: "test_policy",
+        table: {
+          name: "test_table",
+        }
       }),
     });
     expect(errors).toBeUndefined();
@@ -4426,5 +4519,57 @@ describe("GraphQL Server - Transactional Tests", () => {
       },
     });
   });
+
+  // =====================================
+  // TEST: Policy command switch mapping
+  // =====================================
+  it("fetches a specific policy by oid", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query("create role test_role;");
+    await client.query(`create policy test_policy_select on test_schema.test_table for select to test_role using (true);`);
+    await client.query(`create policy test_policy_insert on test_schema.test_table for insert to test_role with check (true);`);
+    await client.query(`create policy test_policy_update on test_schema.test_table for update to test_role using (true);`);
+    await client.query(`create policy test_policy_delete on test_schema.test_table for delete to test_role using (true);`);
+    await client.query(`create policy test_policy_all on test_schema.test_table for all to test_role using (true) with check (true);`);
+
+    // Test each policy and its corresponding command
+    const policies = [
+      { name: 'test_policy_select', expectedCommand: 'SELECT' },
+      { name: 'test_policy_insert', expectedCommand: 'INSERT' },
+      { name: 'test_policy_update', expectedCommand: 'UPDATE' },
+      { name: 'test_policy_delete', expectedCommand: 'DELETE' },
+      { name: 'test_policy_all', expectedCommand: 'ALL' }
+    ];
+
+    for (const policy of policies) {
+      const result = await client.query(`
+      select oid
+      from pg_catalog.pg_policy
+      where polname = $1
+      `, [policy.name]);
+      const policyOid = result.rows[0].oid;
+
+      const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          policy(oid: $oid) {
+            command
+          }
+        }
+      `,
+      { oid: policyOid },
+      client
+      );
+
+      expect(data).toMatchObject({
+      policy: expect.objectContaining({
+        command: policy.expectedCommand,
+      }),
+      });
+      expect(errors).toBeUndefined();
+    }
+    });
 
 });
