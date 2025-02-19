@@ -20,6 +20,28 @@ describe("generic", () => {
     expect(result.pageInfo.hasNextPage).toBe(true);
   });
 
+  it("should paginate items with first and after", () => {
+    const items = [
+      { id: 1, name: "item1" },
+      { id: 2, name: "item2" },
+      { id: 3, name: "item3" },
+    ];
+
+    // First page
+    const firstPage = paginate(items, { first: 2, cursorForNode: (node) => String(node.id) });
+    expect(firstPage.edges).toHaveLength(2);
+    expect(firstPage.pageInfo.hasNextPage).toBe(true);
+    expect(firstPage.pageInfo.endCursor).toBe(Buffer.from("2").toString("base64"));
+
+    const afterCursor = firstPage.pageInfo.endCursor ?? undefined;
+
+    // Second page
+    const secondPage = paginate(items, { first: 2, after: afterCursor, cursorForNode: (node) => String(node.id) });
+    expect(secondPage.edges).toHaveLength(1);
+    expect(secondPage.pageInfo.hasNextPage).toBe(false);
+    expect(secondPage.pageInfo.endCursor).toBe(Buffer.from("3").toString("base64"));
+  });
+
   it("should decode a valid ID", () => {
     const id = buildGlobalId("TestType", 123);
     const decoded = decodeId(id);

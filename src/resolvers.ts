@@ -530,7 +530,6 @@ export const resolvers = {
     },
     triggers: (p: PgClass, args: any, ctx: ReqContext) => {
       const matched = ctx.pg_triggers.filter((tr) => tr.tgrelid === p.oid);
-      console.log("triggers", matched);
       return paginate(matched, {
         first: args.first,
         after: args.after,
