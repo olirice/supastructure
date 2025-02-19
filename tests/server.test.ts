@@ -4153,4 +4153,87 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
+  // =====================================
+  // TEST: Fetch Triggers for a Specific Table
+  // =====================================
+  it("fetches triggers for a specific table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key);");
+    await client.query(`
+      create or replace function test_function()
+      returns trigger as $$
+      begin
+        new.id := new.id + 1;
+        return new;
+      end;
+      $$ language plpgsql;
+    `);
+    await client.query(`
+      create trigger test_trigger
+      before insert on test_schema.test_table
+      for each row
+      execute function test_function();
+    `);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "test_table") {
+            triggers {
+              edges {
+                node {
+                  id
+                  name
+                  oid
+                }
+                cursor
+              }
+              nodes {
+                id
+                name
+                oid
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: {
+        triggers: {
+          edges: [
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "test_trigger",
+                oid: expect.any(Number),
+              }),
+              cursor: expect.any(String),
+            }),
+          ],
+          nodes: [
+            expect.objectContaining({
+              id: expect.any(String),
+              name: "test_trigger",
+              oid: expect.any(Number),
+            }),
+          ],
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: expect.any(String),
+          },
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
 });

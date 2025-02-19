@@ -528,6 +528,15 @@ export const resolvers = {
         cursorForNode: (x) => String(x.oid),
       });
     },
+    triggers: (p: PgClass, args: any, ctx: ReqContext) => {
+      const matched = ctx.pg_triggers.filter((tr) => tr.tgrelid === p.oid);
+      console.log("triggers", matched);
+      return paginate(matched, {
+        first: args.first,
+        after: args.after,
+        cursorForNode: (x) => String(x.oid),
+      });
+    },
     privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext) => {
       const result = await ctx.client.query(`
         select pg_catalog.has_table_privilege($1, $2::oid, 'SELECT') AS select,

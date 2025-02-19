@@ -150,7 +150,9 @@ type Table implements Node {
   columns: ColumnConnection!
   indexes: IndexConnection!
   policies: PolicyConnection!
+  triggers: TriggerConnection!
   privileges(roleName: String!): TablePrivilege!
+
 }
 
 type TablePrivilege {
