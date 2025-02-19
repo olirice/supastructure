@@ -264,7 +264,6 @@ export const resolvers = {
 
     node: (_p: unknown, args: { id: string }, ctx: ReqContext) => {
       const info = decodeId(args.id);
-      if (!info) return null;
       switch (info.typeName) {
         case "Database":
           return ctx.pg_database.oid === info.oid ? ctx.pg_database : null;
@@ -409,17 +408,6 @@ export const resolvers = {
       hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgPolicy }>; first: number }) =>
-      p.edges.map((e) => e.node),
-  },
-
-  PgTypeConnection: {
-    edges: (p: { edges: Array<{ node: PgType }>; first: number; pageInfo: any }) =>
-      p.edges,
-    pageInfo: (p: { edges: Array<{ node: PgType }>; first: number; pageInfo: any }) => ({
-      ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
-    }),
-    nodes: (p: { edges: Array<{ node: PgType }>; first: number }) =>
       p.edges.map((e) => e.node),
   },
 
@@ -630,7 +618,7 @@ export const resolvers = {
     name: (p: PgClass) => p.relname,
     schema: (p: PgClass, _a: any, ctx: ReqContext) =>
       ctx.pg_namespaces.find((n) => n.oid === p.relnamespace) || null,
-    populated: (p: PgClass) =>
+    isPopulated: (p: PgClass) =>
       typeof p.relispopulated === "boolean" ? p.relispopulated : false,
     columns: (p: PgClass, args: any, ctx: ReqContext) => {
       const cols = ctx.pg_attributes

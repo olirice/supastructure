@@ -1221,6 +1221,65 @@ describe("GraphQL Server - Transactional Tests", () => {
   });
 
   // =====================================
+  // TEST: Fetch a Specific Index with all fields
+  // =====================================
+  it("fetches a specific index with all fields", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.test_table (id serial primary key, name text);");
+    await client.query("create index test_index on test_schema.test_table (name);");
+    const result = await client.query(`
+      select oid
+      from pg_catalog.pg_class
+      where relname = 'test_index'
+    `);
+    const indexOid = result.rows[0].oid;
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($oid: Int!) {
+          index(oid: $oid) {
+            id
+            oid
+            name
+            schema {
+              id
+              name
+            }
+            table {
+              id
+              name
+            }
+            accessMethod
+            definition
+          }
+        }
+      `,
+      { oid: indexOid },
+      client
+    );
+
+    expect(data).toMatchObject({
+      index: expect.objectContaining({
+        id: expect.any(String),
+        oid: indexOid,
+        name: "test_index",
+        schema: expect.objectContaining({
+          id: expect.any(String),
+          name: "test_schema",
+        }),
+        table: expect.objectContaining({
+          id: expect.any(String),
+          name: "test_table",
+        }),
+        accessMethod: expect.any(String),
+        definition: expect.any(String),
+      }),
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
   // TEST: Fetch a Specific Trigger by OID
   // =====================================
   it("fetches a specific trigger by oid", async () => {
@@ -2339,6 +2398,7 @@ describe("GraphQL Server - Transactional Tests", () => {
             materializedViews {
               nodes {
                 name
+                isPopulated
               }
             }
           }
@@ -3808,6 +3868,273 @@ describe("GraphQL Server - Transactional Tests", () => {
           ],
         },
       },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific Table by Schema Name and Table Name (Non-existent)
+  // =====================================
+  it("returns null when querying a non-existent table by schema name and table name", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "non_existent") {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      table: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific View by Schema Name and Table Name (Non-existent)
+  // =====================================
+  it("returns null when querying a non-existent view by schema name and view name", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          view(schemaName: "test_schema", name: "non_existent") {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      view: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific Materialized View by Schema Name and Matview Name (Non-existent)
+  // =====================================
+  it("returns null when querying a non-existent materialized view by schema name and mat view name", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          materializedView(schemaName: "test_schema", name: "non_existent") {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      materializedView: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific Index by Schema Name and Index Name (Non-existent)
+  // =====================================
+  it("returns null when querying a non-existent index by schema name and index name", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          index(schemaName: "test_schema", name: "non_existent") {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      index: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific Policy by Schema Name and Policy Name (Non-existent)
+  // =====================================
+  it("returns null when querying a non-existent policy by schema name and policy", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          policy(schemaName: "test_schema", name: "non_existent") {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      policy: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific Trigger by Schema Name and Trigger Name (Non-existent)
+  // =====================================
+  it("returns null when querying a non-existent trigger by schema name and name", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          trigger(schemaName: "test_schema", name: "non_existent") {
+            id
+            oid
+            name
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      trigger: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific Type by Schema Name and Name (Non-existent)
+  // =====================================
+  it("returns null when querying a non-existent type by schema name and name", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          type(schemaName: "test_schema", name: "non_existent") {
+            ... on PgTypeInterface {
+              id
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific Type no args (No match)
+  // =====================================
+  it("returns null when querying a type without filtering", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          type {
+            ... on PgTypeInterface {
+              id
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      type: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Specific role no args (No match)
+  // =====================================
+  it("returns null when querying a role without filtering", async () => {
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          role{
+            id
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      role: null,
+    });
+    expect(errors).toBeUndefined();
+  });
+
+
+  // =====================================
+  // TEST: Fetch a Node with nonsense entity type returns null
+  // =====================================
+  it("returns null when fetching nonsense entity type by Id", async () => {
+    const schemaId = buildGlobalId("DoesNotExist", 1);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query ($id: ID!) {
+          node(id: $id) {
+            id
+          }
+        }
+      `,
+      { id: schemaId },
+      client
+    );
+
+    expect(data).toMatchObject({
+      node: null,
     });
     expect(errors).toBeUndefined();
   });

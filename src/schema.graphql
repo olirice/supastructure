@@ -259,7 +259,7 @@ type MaterializedView implements Node {
   schema: Schema!
   indexes: IndexConnection!
   """From pg_class.relispopulated"""
-  populated: Boolean!
+  isPopulated: Boolean!
   columns: ColumnConnection!
   privileges(roleName: String!): MaterializedViewPrivilege!
 }
@@ -371,17 +371,6 @@ enum TypeKind {
   COMPOSITE
   ENUM
   UNKNOWN
-}
-
-type PgTypeConnection {
-  edges: [PgTypeEdge!]!
-  pageInfo: PageInfo!
-  nodes: [PgType!]!
-}
-
-type PgTypeEdge {
-  node: PgType!
-  cursor: String!
 }
 
 union PgType = DomainType | ScalarType | EnumType | ArrayType | CompositeType | UnknownType

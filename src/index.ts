@@ -4,7 +4,7 @@ import { startStandaloneServer } from "@apollo/server/standalone";
 import { readFileSync } from "fs";
 import { gql } from "graphql-tag";
 import { resolvers } from "./resolvers.js";
-import { context, DbConfig, ReqContext } from "./context.js";
+import { context, DbConfig, ReqContext, releaseClient } from "./context.js";
 
 // Load environment variables
 config();
@@ -19,7 +19,24 @@ export const dbConfig: DbConfig = {
 
 const typeDefs = gql(readFileSync("src/schema.graphql", "utf8"));
 
-const server = new ApolloServer<ReqContext>({ typeDefs, resolvers });
+const server = new ApolloServer<ReqContext>({
+  typeDefs,
+  resolvers,
+  plugins: [
+    {
+      async requestDidStart() {
+        return {
+          async willSendResponse(requestContext) {
+            const { contextValue } = requestContext;
+            if (contextValue && contextValue.client) {
+              await releaseClient(contextValue.client);
+            }
+          },
+        };
+      },
+    },
+  ],
+});
 
 // Don't run the production server when testing
 if (process.env.NODE_ENV !== "test") {
