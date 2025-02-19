@@ -38,22 +38,16 @@ export function paginate<T>(
   items: T[],
   { first = MAX_PAGE_SIZE, after, cursorForNode }: PaginateOptions<T>
 ): PaginatedResult<T> {
+  const limitedFirst = limitPageSize(first);
   let sliceStart = 0;
   if (after) {
     const afterVal = parseInt(Buffer.from(after, "base64").toString(), 10);
     const idx = items.findIndex((i) => cursorForNode(i) === String(afterVal));
     sliceStart = idx >= 0 ? idx + 1 : items.length;
   }
-  const limitedFirst = limitPageSize(first);
   const sliceEnd = sliceStart + limitedFirst;
   const sliced = items.slice(sliceStart, sliceEnd);
   const hasNextPage = sliceEnd < items.length;
-  console.log("sliced", sliced);
-  console.log("slicedStart", sliceStart);
-  console.log("slicedEnd", sliceEnd);
-  console.log("limitedFirst", limitedFirst);
-  console.log("hasNextPage", hasNextPage);
-  console.log("items.length", items.length);
   const edges = sliced.map((node) => {
     const c = cursorForNode(node);
     return {

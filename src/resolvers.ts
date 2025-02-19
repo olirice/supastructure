@@ -317,7 +317,6 @@ export const resolvers = {
       p.edges,
     pageInfo: (p: { edges: Array<{ node: PgNamespace }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgNamespace }>; first: number }) =>
       p.edges.map((e) => e.node),
@@ -328,7 +327,6 @@ export const resolvers = {
       p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
       p.edges.map((e) => e.node),
@@ -339,7 +337,6 @@ export const resolvers = {
       p.edges,
     pageInfo: (p: { edges: Array<{ node: PgAttribute }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgAttribute }>; first: number }) =>
       p.edges.map((e) => e.node),
@@ -350,7 +347,6 @@ export const resolvers = {
       p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
       p.edges.map((e) => e.node),
@@ -361,7 +357,6 @@ export const resolvers = {
       p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
       p.edges.map((e) => e.node),
@@ -372,7 +367,6 @@ export const resolvers = {
       p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
       p.edges.map((e) => e.node),
@@ -382,7 +376,6 @@ export const resolvers = {
     edges: (p: { edges: Array<{ node: PgTrigger }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgTrigger }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgTrigger }>; first: number }) =>
       p.edges.map((e) => e.node),
@@ -393,7 +386,6 @@ export const resolvers = {
       p.edges,
     pageInfo: (p: { edges: Array<{ node: PgPolicy }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
-      hasNextPage: p.edges.length >= limitPageSize(p.first),
     }),
     nodes: (p: { edges: Array<{ node: PgPolicy }>; first: number }) =>
       p.edges.map((e) => e.node),

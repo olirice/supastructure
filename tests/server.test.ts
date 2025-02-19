@@ -4236,4 +4236,195 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
+  // =====================================
+  // TEST: Sort Schemas by Name
+  // =====================================
+  it("sorts schemas by name", async () => {
+    await client.query("create schema schema_a;");
+    await client.query("create schema schema_b;");
+    await client.query("create schema schema_c;");
+    await client.query("drop schema if exists public;");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          database {
+            schemas(orderBy: { field: NAME, direction: DESC }) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      database: {
+        schemas: {
+          nodes: [
+            { name: "schema_c" },
+            { name: "schema_b" },
+            { name: "schema_a" },
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Sort Tables by Name
+  // =====================================
+  it("sorts tables by name", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.table_c (id serial primary key);");
+    await client.query("create table test_schema.table_b (id serial primary key);");
+    await client.query("create table test_schema.table_a (id serial primary key);");
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            tables(orderBy: { field: NAME, direction: ASC }) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(data).toMatchObject({
+      schema: {
+        tables: {
+          nodes: [
+            { name: "table_a" },
+            { name: "table_b" },
+            { name: "table_c" },
+          ],
+        },
+      },
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  // =====================================
+  // TEST: Paginate Tables using first and after
+  // =====================================
+  it("paginates tables using first and after", async () => {
+    await client.query("create schema test_schema;");
+    await client.query("create table test_schema.table_a (id serial primary key);");
+    await client.query("create table test_schema.table_b (id serial primary key);");
+    await client.query("create table test_schema.table_c (id serial primary key);");
+
+    const { data: firstPageData, errors: firstPageErrors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            tables(first: 2) {
+              edges {
+                node {
+                  id
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(firstPageErrors).toBeUndefined();
+    expect(firstPageData).toMatchObject({
+      schema: {
+        tables: {
+          edges: [
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "table_a",
+              }),
+              cursor: expect.any(String),
+            }),
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "table_b",
+              }),
+              cursor: expect.any(String),
+            }),
+          ],
+          pageInfo: {
+            hasNextPage: true,
+            endCursor: expect.any(String),
+          },
+        },
+      },
+    });
+
+    const endCursor = (firstPageData as { schema: { tables: { pageInfo: { endCursor: string } } } }).schema.tables.pageInfo.endCursor;
+
+    const { data: secondPageData, errors: secondPageErrors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          schema(schemaName: "test_schema") {
+            tables(first: 2, after: "${endCursor}") {
+              edges {
+                node {
+                  id
+                  name
+                }
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect(secondPageErrors).toBeUndefined();
+    expect(secondPageData).toMatchObject({
+      schema: {
+        tables: {
+          edges: [
+            expect.objectContaining({
+              node: expect.objectContaining({
+                id: expect.any(String),
+                name: "table_c",
+              }),
+              cursor: expect.any(String),
+            }),
+          ],
+          pageInfo: {
+            hasNextPage: false,
+            endCursor: expect.any(String),
+          },
+        },
+      },
+    });
+  });
+
 });
