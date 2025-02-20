@@ -152,7 +152,10 @@ type Table implements Node {
   policies: PolicyConnection!
   triggers: TriggerConnection!
   privileges(roleName: String!): TablePrivilege!
-
+  """Foreign keys where this table is the referencing table"""
+  foreignKeys: ForeignKeyConnection!
+  """Foreign keys where this table is the referenced table"""
+  referencedBy: ForeignKeyConnection!
 }
 
 type TablePrivilege {
@@ -439,4 +442,62 @@ type UnknownType implements PgTypeInterface & Node {
   oid: Int!
   name: String!
   kind: TypeKind!
+}
+
+type ForeignKeyConnection {
+  edges: [ForeignKeyEdge!]!
+  pageInfo: PageInfo!
+  nodes: [ForeignKey!]!
+}
+
+type ForeignKeyEdge {
+  node: ForeignKey!
+  cursor: String!
+}
+
+"""
+Foreign key constraint from pg_constraint where contype = 'f'
+"""
+type ForeignKey implements Node {
+  id: ID!
+  """From pg_constraint.oid"""
+  oid: Int!
+  """From pg_constraint.conname"""
+  name: String!
+  """The table containing the foreign key columns"""
+  table: Table!
+  """The table being referenced"""
+  referencedTable: Table!
+  """From pg_constraint.confupdtype"""
+  updateAction: ForeignKeyAction!
+  """From pg_constraint.confdeltype"""
+  deleteAction: ForeignKeyAction!
+  """Column mappings for the foreign key"""
+  columnMappings: [ForeignKeyColumnMapping!]!
+}
+
+"""
+Maps a foreign key column to its referenced column
+"""
+type ForeignKeyColumnMapping {
+  """The referencing column in the foreign key's table"""
+  referencingColumn: Column!
+  """The referenced column"""
+  referencedColumn: Column!
+}
+
+"""
+Foreign key actions from pg_constraint.confupdtype/confdeltype
+"""
+enum ForeignKeyAction {
+  """NO ACTION"""
+  NO_ACTION
+  """RESTRICT"""
+  RESTRICT
+  """CASCADE"""
+  CASCADE
+  """SET NULL"""
+  SET_NULL
+  """SET DEFAULT"""
+  SET_DEFAULT
 }

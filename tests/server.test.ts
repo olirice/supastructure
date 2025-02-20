@@ -4572,4 +4572,105 @@ describe("GraphQL Server - Transactional Tests", () => {
     }
     });
 
+  // =====================================
+  // TEST: Foreign Keys
+  // =====================================
+  it("fetches foreign keys for a table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query(`
+      create table test_schema.parent (
+        id serial primary key
+      );
+    `);
+    await client.query(`
+      create table test_schema.child (
+        id serial primary key,
+        parent_id integer references test_schema.parent(id) on delete cascade
+      );
+    `);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "child") {
+            foreignKeys {
+              nodes {
+                name
+                updateAction
+                deleteAction
+                columnMappings {
+                  referencingColumn {
+                    name
+                  }
+                  referencedColumn {
+                    name
+                  }
+                }
+                referencedTable {
+                  name
+                }
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.table?.foreignKeys?.nodes?.[0]).toMatchObject({
+      name: expect.any(String),
+      updateAction: "NO_ACTION",
+      deleteAction: "CASCADE",
+      columnMappings: [{
+      referencingColumn: { name: "parent_id" },
+      referencedColumn: { name: "id" }
+      }],
+      referencedTable: { name: "parent" }
+    });
+    expect(errors).toBeUndefined();
+  });
+
+  it("fetches tables referencing a table", async () => {
+    await client.query("create schema test_schema;");
+    await client.query(`
+      create table test_schema.parent (
+        id serial primary key
+      );
+    `);
+    await client.query(`
+      create table test_schema.child (
+        id serial primary key,
+        parent_id integer references test_schema.parent(id)
+      );
+    `);
+
+    const { data, errors } = await executeTestQuery(
+      testServer,
+      `
+        query {
+          table(schemaName: "test_schema", name: "parent") {
+            referencedBy {
+              nodes {
+                name
+                table {
+                  name
+                }
+              }
+            }
+          }
+        }
+      `,
+      {},
+      client
+    );
+
+    expect((data as any)?.table?.referencedBy?.nodes[0]).toMatchObject({
+      name: expect.any(String),
+      table: { name: "child" }
+    });
+    expect(errors).toBeUndefined();
+  });
+
 });

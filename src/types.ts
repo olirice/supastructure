@@ -83,3 +83,15 @@ export const PgRoleSchema = z.object({
   rolsuper: z.boolean().optional(),
 });
 export type PgRole = z.infer<typeof PgRoleSchema>;
+
+export const PgForeignKeySchema = z.object({
+  oid: z.number().int(),
+  conname: z.string(),
+  conrelid: z.number().int(),
+  confrelid: z.number().int(),
+  conkey: z.array(z.number()),
+  confkey: z.array(z.number()),
+  confupdtype: z.string(),
+  confdeltype: z.string(),
+});
+export type PgForeignKey = z.infer<typeof PgForeignKeySchema>;

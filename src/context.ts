@@ -19,6 +19,8 @@ import {
   PgIndexSchema,
   PgRoleSchema,
   PgTypeSchema,
+  PgForeignKey,
+  PgForeignKeySchema,
 } from "./types.js";
 import pg from "pg";
 
@@ -37,6 +39,7 @@ export interface ReqContext {
   pg_enums: PgEnum[];
   pg_index: PgIndex[];
   pg_roles: PgRole[];
+  pg_foreign_keys: PgForeignKey[];
 }
 
 export interface DbConfig {
@@ -219,6 +222,31 @@ export async function context(
       `);
     const pg_roles = roleRows.rows.map((r) => PgRoleSchema.parse(r));
 
+    // foreign keys
+    const fkRows = await client.query(`
+      select
+        c.oid,
+        c.conname,
+        c.conrelid,
+        c.confrelid,
+        c.confupdtype,
+        c.confdeltype,
+        array_agg(a.attnum) as conkey,
+        array_agg(cf.attnum) as confkey,
+        n.nspname
+      from pg_catalog.pg_constraint c
+      join pg_catalog.pg_namespace n on n.oid = c.connamespace
+      join pg_catalog.pg_attribute a on a.attrelid = c.conrelid
+      join pg_catalog.pg_attribute cf on cf.attrelid = c.confrelid
+      where c.contype = 'f'
+        and a.attnum = any(c.conkey)
+        and cf.attnum = any(c.confkey)
+        and n.nspname not in ('pg_catalog','information_schema')
+      group by c.oid, c.conname, c.conrelid, c.confrelid, c.confupdtype, c.confdeltype, n.nspname
+      order by n.nspname, c.conname
+    `);
+    const pg_foreign_keys = fkRows.rows.map((r) => PgForeignKeySchema.parse(r));
+
     //await releaseClient(client);
 
     return {
@@ -233,6 +261,7 @@ export async function context(
       pg_enums,
       pg_index,
       pg_roles,
+      pg_foreign_keys,
     };
   } catch (err) {
     console.error("error loading data:", err);

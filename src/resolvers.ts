@@ -9,6 +9,8 @@ import {
   PgEnum,
   PgIndex,
   PgRole,
+  PgForeignKey,
+  PgForeignKeySchema,
 } from "./types.js";
 import { ReqContext } from "./context.js";
 import {
@@ -544,9 +546,27 @@ export const resolvers = {
         delete: result.rows[0].delete,
       };
     },
+    foreignKeys: (p: PgClass, args: any, ctx: ReqContext) => {
+      const items = ctx.pg_foreign_keys.filter(
+        (fk) => fk.conrelid === p.oid
+      );
+      return paginate(items, {
+        first: args.first,
+        after: args.after,
+        cursorForNode: (n) => String(n.oid),
+      });
+    },
+    referencedBy: (p: PgClass, args: any, ctx: ReqContext) => {
+      const items = ctx.pg_foreign_keys.filter(
+        (fk) => fk.confrelid === p.oid
+      );
+      return paginate(items, {
+        first: args.first,
+        after: args.after,
+        cursorForNode: (n) => String(n.oid),
+      });
+    },
   },
-
-
 
   Column: {
     id: (p: PgAttribute) => buildGlobalId("Column", p.attrelid),
@@ -785,8 +805,39 @@ export const resolvers = {
       return null;
     },
   },
-}
 
+  ForeignKey: {
+    id: (p: PgForeignKey) => buildGlobalId("ForeignKey", p.oid),
+    oid: (p: PgForeignKey) => p.oid,
+    name: (p: PgForeignKey) => p.conname,
+    table: (p: PgForeignKey, _a: any, ctx: ReqContext) =>
+      ctx.pg_classes.find((c) => c.oid === p.conrelid) || null,
+    referencedTable: (p: PgForeignKey, _a: any, ctx: ReqContext) =>
+      ctx.pg_classes.find((c) => c.oid === p.confrelid) || null,
+    updateAction: (p: PgForeignKey) => resolveForeignKeyAction(p.confupdtype),
+    deleteAction: (p: PgForeignKey) => resolveForeignKeyAction(p.confdeltype),
+    columnMappings: (p: PgForeignKey, _a: any, ctx: ReqContext) => {
+      return p.conkey.map((attnum: number, idx: number) => ({
+        referencingColumn: ctx.pg_attributes.find(
+          (a) => a.attrelid === p.conrelid && a.attnum === attnum
+        ) || null,
+        referencedColumn: ctx.pg_attributes.find(
+          (a) => a.attrelid === p.confrelid && a.attnum === p.confkey[idx]
+        ) || null,
+      }));
+    },
+  },
+
+  ForeignKeyConnection: {
+    edges: (p: { edges: Array<{ node: PgForeignKey }>; first: number; pageInfo: any }) =>
+      p.edges,
+    pageInfo: (p: { edges: Array<{ node: PgForeignKey }>; first: number; pageInfo: any }) => ({
+      ...p.pageInfo,
+    }),
+    nodes: (p: { edges: Array<{ node: PgForeignKey }>; first: number }) =>
+      p.edges.map((e) => e.node),
+  },
+}
 
 function resolvePgType(obj: PgType): string {
   if (obj.typtype === 'd') return 'DomainType';
@@ -797,4 +848,15 @@ function resolvePgType(obj: PgType): string {
     return 'ScalarType';
   }
   return 'UnknownType';
+}
+
+function resolveForeignKeyAction(action: string): string {
+  switch (action) {
+    case 'a': return 'NO_ACTION';
+    case 'r': return 'RESTRICT';
+    case 'c': return 'CASCADE';
+    case 'n': return 'SET_NULL';
+    case 'd': return 'SET_DEFAULT';
+    default: return 'NO_ACTION';
+  }
 }

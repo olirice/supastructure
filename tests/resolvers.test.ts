@@ -13,6 +13,7 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     pg_types: [],
     pg_enums: [],
     pg_index: [],
+    pg_foreign_keys: [],
     client: {
       query: jest.fn().mockResolvedValue({ rows: [] }),
       release: jest.fn(),
