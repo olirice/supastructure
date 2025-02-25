@@ -12,7 +12,7 @@ import {
   PgForeignKey,
   PgForeignKeySchema,
 } from "./types.js";
-import { ReqContext } from "./context.js";
+import { ReqContext, queries } from "./context.js";
 import {
   decodeId,
   singleResultOrError,
@@ -21,7 +21,6 @@ import {
   paginate,
   limitPageSize,
 } from "./generic.js";
-
 export const resolvers = {
   Query: {
     database: (
@@ -33,163 +32,122 @@ export const resolvers = {
     },
 
     // single-entity queries for schema, table, etc.
-    schema: (
+    schema: async (
       _p: unknown,
       args: { schemaName?: string; id?: string; oid?: number },
       ctx: ReqContext
-    ): PgNamespace | null => {
+    ): Promise<PgNamespace | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Schema") {
-        const matched = ctx.pg_namespaces.filter((s) => s.oid === fromId.oid);
-        return singleResultOrError(matched, "Schema");
+        return queries.namespaceByOid(ctx.client, fromId.oid);
       }
       if (args.oid) {
-        const matched = ctx.pg_namespaces.filter((s) => s.oid === args.oid);
-        return singleResultOrError(matched, "Schema");
+        return queries.namespaceByOid(ctx.client, args.oid);
       }
       if (args.schemaName) {
-        const matched = ctx.pg_namespaces.filter(
-          (s) => s.nspname === args.schemaName
-        );
-        return singleResultOrError(matched, "Schema");
+        return queries.namespaceByName(ctx.client, args.schemaName);
       }
       return null;
     },
 
-    table: (_p: unknown, args: any, ctx: ReqContext): PgClass | null => {
+    table: async (
+      _p: unknown,
+      args: { schemaName?: string; name?: string; id?: string; oid?: number },
+      ctx: ReqContext
+    ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Table") {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === fromId.oid && c.relkind === "r"
-        );
-        return singleResultOrError(matched, "Table");
+        const result = await queries.classByOid(ctx.client, fromId.oid);
+        return result?.relkind === 'r' ? result : null;
       }
       if (args.oid) {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === args.oid && c.relkind === "r"
-        );
-        return singleResultOrError(matched, "Table");
+        const result = await queries.classByOid(ctx.client, args.oid);
+        return result?.relkind === 'r' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const ns = ctx.pg_namespaces.find((s) => s.nspname === args.schemaName);
-        if (!ns) return null;
-        const matched = ctx.pg_classes.filter(
-          (c) =>
-            c.relkind === "r" &&
-            c.relname === args.name &&
-            c.relnamespace === ns.oid
-        );
-        return singleResultOrError(matched, "Table");
+        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
+        return result?.relkind === 'r' ? result : null;
       }
       return null;
     },
 
-    view: (_p: unknown, args: any, ctx: ReqContext): PgClass | null => {
+    view: async (
+      _p: unknown,
+      args: { schemaName?: string; name?: string; id?: string; oid?: number },
+      ctx: ReqContext
+    ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "View") {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === fromId.oid && c.relkind === "v"
-        );
-        return singleResultOrError(matched, "View");
+        const result = await queries.classByOid(ctx.client, fromId.oid);
+        return result?.relkind === 'v' ? result : null;
       }
       if (args.oid) {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === args.oid && c.relkind === "v"
-        );
-        return singleResultOrError(matched, "View");
+        const result = await queries.classByOid(ctx.client, args.oid);
+        return result?.relkind === 'v' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const ns = ctx.pg_namespaces.find((s) => s.nspname === args.schemaName);
-        if (!ns) return null;
-        const matched = ctx.pg_classes.filter(
-          (c) =>
-            c.relkind === "v" &&
-            c.relname === args.name &&
-            c.relnamespace === ns.oid
-        );
-        return singleResultOrError(matched, "View");
+        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
+        return result?.relkind === 'v' ? result : null;
       }
       return null;
     },
 
-    materializedView: (
+    materializedView: async (
       _p: unknown,
-      args: any,
+      args: { schemaName?: string; name?: string; id?: string; oid?: number },
       ctx: ReqContext
-    ): PgClass | null => {
+    ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "MaterializedView") {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === fromId.oid && c.relkind === "m"
-        );
-        return singleResultOrError(matched, "MaterializedView");
+        const result = await queries.classByOid(ctx.client, fromId.oid);
+        return result?.relkind === 'm' ? result : null;
       }
       if (args.oid) {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === args.oid && c.relkind === "m"
-        );
-        return singleResultOrError(matched, "MaterializedView");
+        const result = await queries.classByOid(ctx.client, args.oid);
+        return result?.relkind === 'm' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const ns = ctx.pg_namespaces.find((s) => s.nspname === args.schemaName);
-        if (!ns) return null;
-        const matched = ctx.pg_classes.filter(
-          (c) =>
-            c.relkind === "m" &&
-            c.relname === args.name &&
-            c.relnamespace === ns.oid
-        );
-        return singleResultOrError(matched, "MaterializedView");
+        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
+        return result?.relkind === 'm' ? result : null;
       }
       return null;
     },
 
-    index: (_p: unknown, args: any, ctx: ReqContext): PgClass | null => {
+    index: async (
+      _p: unknown,
+      args: { schemaName?: string; name?: string; id?: string; oid?: number },
+      ctx: ReqContext
+    ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Index") {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === fromId.oid && c.relkind === "i"
-        );
-        return singleResultOrError(matched, "Index");
+        const result = await queries.classByOid(ctx.client, fromId.oid);
+        return result?.relkind === 'i' ? result : null;
       }
       if (args.oid) {
-        const matched = ctx.pg_classes.filter(
-          (c) => c.oid === args.oid && c.relkind === "i"
-        );
-        return singleResultOrError(matched, "Index");
+        const result = await queries.classByOid(ctx.client, args.oid);
+        return result?.relkind === 'i' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const ns = ctx.pg_namespaces.find((s) => s.nspname === args.schemaName);
-        if (!ns) return null;
-        const matched = ctx.pg_classes.filter(
-          (c) =>
-            c.relkind === "i" &&
-            c.relname === args.name &&
-            c.relnamespace === ns.oid
-        );
-        return singleResultOrError(matched, "Index");
+        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
+        return result?.relkind === 'i' ? result : null;
       }
       return null;
     },
 
-    trigger: (_p: unknown, args: any, ctx: ReqContext): PgTrigger | null => {
+    trigger: async (
+      _p: unknown,
+      args: { id?: string; oid?: number, schemaName?: string; name?: string },
+      ctx: ReqContext
+    ): Promise<PgTrigger | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Trigger") {
-        const matched = ctx.pg_triggers.filter((t) => t.oid === fromId.oid);
-        return singleResultOrError(matched, "Trigger");
+        return queries.triggerByOid(ctx.client, fromId.oid);
       }
       if (args.oid) {
-        const matched = ctx.pg_triggers.filter((t) => t.oid === args.oid);
-        return singleResultOrError(matched, "Trigger");
+        return queries.triggerByOid(ctx.client, args.oid);
       }
       if (args.schemaName && args.name) {
-        const ns = ctx.pg_namespaces.find((s) => s.nspname === args.schemaName);
-        if (!ns) return null;
-        const matched = ctx.pg_triggers.filter((tr) => {
-          const c = ctx.pg_classes.find((cl) => cl.oid === tr.tgrelid);
-          return c && c.relnamespace === ns.oid && tr.tgname === args.name;
-        });
-        return singleResultOrError(matched, "Trigger");
+        return queries.triggersByNameAndSchema(ctx.client, args.schemaName, args.name);
       }
       return null;
     },
@@ -216,50 +174,38 @@ export const resolvers = {
       return null;
     },
 
-    type: (_p: unknown, args: any, ctx: ReqContext): PgType | null => {
+    type: async (
+      _p: unknown,
+      args: { schemaName?: string; name?: string; id?: string; oid?: number },
+      ctx: ReqContext
+    ): Promise<PgType | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "PgType") {
-        const matched = ctx.pg_types.filter((t) => t.oid === fromId.oid);
-        return singleResultOrError(matched, "PgType");
+        return queries.typeByOid(ctx.client, fromId.oid);
       }
       if (args.oid) {
-        const matched = ctx.pg_types.filter((t) => t.oid === args.oid);
-        return singleResultOrError(matched, "PgType");
+        return queries.typeByOid(ctx.client, args.oid);
       }
       if (args.schemaName && args.name) {
-        const ns = ctx.pg_namespaces.find((n) => n.nspname === args.schemaName);
-        if (!ns) return null;
-        // check composite
-        const maybeClass = ctx.pg_classes.find(
-          (c) => c.relname === args.name && c.relnamespace === ns.oid
-        );
-        if (maybeClass) {
-          const matched = ctx.pg_types.filter(
-            (ty) => ty.typrelid === maybeClass.oid
-          );
-          return singleResultOrError(matched, "PgType");
-        }
-        const matched = ctx.pg_types.filter((ty) => ty.typname === args.name);
-        return singleResultOrError(matched, "PgType");
+        return queries.typeByNameAndSchema(ctx.client, args.schemaName, args.name);
       }
       return null;
     },
 
-    role: (_p: unknown, args: any, ctx: ReqContext): PgRole | null => {
-      // example single-result role lookup
-      // if ID is specified:
+    role: async (
+      _p: unknown,
+      args: { name?: string; id?: string; oid?: number },
+      ctx: ReqContext
+    ): Promise<PgRole | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Role") {
-        const match = ctx.pg_roles.filter((r) => r.oid === fromId.oid);
-        return singleResultOrError(match, "Role");
+        return queries.roleByOid(ctx.client, fromId.oid);
       }
       if (args.oid) {
-        const match = ctx.pg_roles.filter((r) => r.oid === args.oid);
-        return singleResultOrError(match, "Role");
+        return queries.roleByOid(ctx.client, args.oid);
       }
       if (args.name) {
-        const match = ctx.pg_roles.filter((r) => r.rolname === args.name);
-        return singleResultOrError(match, "Role");
+        return queries.roleByName(ctx.client, args.name);
       }
       return null;
     },
