@@ -23,6 +23,8 @@ import {
   PgForeignKeySchema,
 } from "./types.js";
 import pg from "pg";
+import DataLoader from "dataloader";
+// Using DataLoader for efficient batched loading
 
 const { Client } = pg;
 
@@ -445,18 +447,42 @@ export const queries = {
 
 export interface ReqContext {
   client: pg.Client | pg.PoolClient;
-
-  pg_database: PgDatabase;
-  pg_namespaces: PgNamespace[];
-  pg_classes: PgClass[];
-  pg_attributes: PgAttribute[];
-  pg_triggers: PgTrigger[];
-  pg_policies: PgPolicy[];
-  pg_types: PgType[];
-  pg_enums: PgEnum[];
-  pg_index: PgIndex[];
-  pg_roles: PgRole[];
-  pg_foreign_keys: PgForeignKey[];
+  
+  // Efficient data loading with caching
+  resolveDatabase: () => Promise<PgDatabase>;
+  resolveNamespaces: (filter?: (ns: PgNamespace) => boolean) => Promise<PgNamespace[]>;
+  resolveClasses: (filter?: (cls: PgClass) => boolean) => Promise<PgClass[]>;
+  resolveAttributes: (filter?: (attr: PgAttribute) => boolean) => Promise<PgAttribute[]>;
+  resolveTriggers: (filter?: (trigger: PgTrigger) => boolean) => Promise<PgTrigger[]>;
+  resolvePolicies: (filter?: (policy: PgPolicy) => boolean) => Promise<PgPolicy[]>;
+  resolveTypes: (filter?: (type: PgType) => boolean) => Promise<PgType[]>;
+  resolveEnums: (filter?: (enum_: PgEnum) => boolean) => Promise<PgEnum[]>;
+  resolveIndexes: (filter?: (index: PgIndex) => boolean) => Promise<PgIndex[]>;
+  resolveRoles: (filter?: (role: PgRole) => boolean) => Promise<PgRole[]>;
+  resolveForeignKeys: (filter?: (fk: PgForeignKey) => boolean) => Promise<PgForeignKey[]>;
+  
+  // DataLoaders for batched SQL queries
+  typeLoader: DataLoader<number, PgType | null>;
+  namespaceLoader: DataLoader<number, PgNamespace | null>;
+  classLoader: DataLoader<number, PgClass | null>;
+  attributeLoader: DataLoader<number, PgAttribute[] | null>;
+  triggerLoader: DataLoader<number, PgTrigger[] | null>;
+  policyLoader: DataLoader<number, PgPolicy[] | null>;
+  
+  // Cached data sources
+  dataSources: {
+    database?: PgDatabase;
+    namespaces?: PgNamespace[];
+    classes?: PgClass[];
+    attributes?: PgAttribute[];
+    triggers?: PgTrigger[];
+    policies?: PgPolicy[];
+    types?: PgType[];
+    enums?: PgEnum[];
+    indexes?: PgIndex[];
+    roles?: PgRole[];
+    foreignKeys?: PgForeignKey[];
+  };
 }
 
 export interface DbConfig {
@@ -487,32 +513,283 @@ export async function context(
   if (!existingClient) {
     await client.connect();
   }
+  
   try {
-    const pg_database = await queries.database(client);
-    const pg_namespaces = await queries.namespaces(client);
-    const pg_classes = await queries.classes(client);
-    const pg_attributes = await queries.attributes(client);
-    const pg_triggers = await queries.triggers(client);
-    const pg_policies = await queries.policies(client);
-    const pg_types = await queries.types(client);
-    const pg_enums = await queries.enums(client);
-    const pg_index = await queries.index(client);
-    const pg_roles = await queries.roles(client);
-    const pg_foreign_keys = await queries.foreignKeys(client);
-
+    // Create data sources object to cache results
+    const dataSources: ReqContext['dataSources'] = {};
+    
+    // Create resolver functions that use efficient data loading with caching
+    const resolveDatabase = async () => {
+      if (dataSources.database) return dataSources.database;
+      dataSources.database = await queries.database(client);
+      return dataSources.database;
+    };
+    
+    const resolveNamespaces = async (filter?: (ns: PgNamespace) => boolean) => {
+      if (!dataSources.namespaces) {
+        dataSources.namespaces = await queries.namespaces(client);
+      }
+      return filter ? dataSources.namespaces.filter(filter) : dataSources.namespaces;
+    };
+    
+    const resolveClasses = async (filter?: (cls: PgClass) => boolean) => {
+      if (!dataSources.classes) {
+        dataSources.classes = await queries.classes(client);
+      }
+      return filter ? dataSources.classes.filter(filter) : dataSources.classes;
+    };
+    
+    const resolveAttributes = async (filter?: (attr: PgAttribute) => boolean) => {
+      if (!dataSources.attributes) {
+        dataSources.attributes = await queries.attributes(client);
+      }
+      return filter ? dataSources.attributes.filter(filter) : dataSources.attributes;
+    };
+    
+    const resolveTriggers = async (filter?: (trigger: PgTrigger) => boolean) => {
+      if (!dataSources.triggers) {
+        dataSources.triggers = await queries.triggers(client);
+      }
+      return filter ? dataSources.triggers.filter(filter) : dataSources.triggers;
+    };
+    
+    const resolvePolicies = async (filter?: (policy: PgPolicy) => boolean) => {
+      if (!dataSources.policies) {
+        dataSources.policies = await queries.policies(client);
+      }
+      return filter ? dataSources.policies.filter(filter) : dataSources.policies;
+    };
+    
+    const resolveTypes = async (filter?: (type: PgType) => boolean) => {
+      if (!dataSources.types) {
+        dataSources.types = await queries.types(client);
+      }
+      return filter ? dataSources.types.filter(filter) : dataSources.types;
+    };
+    
+    const resolveEnums = async (filter?: (enum_: PgEnum) => boolean) => {
+      if (!dataSources.enums) {
+        dataSources.enums = await queries.enums(client);
+      }
+      return filter ? dataSources.enums.filter(filter) : dataSources.enums;
+    };
+    
+    const resolveIndexes = async (filter?: (index: PgIndex) => boolean) => {
+      if (!dataSources.indexes) {
+        dataSources.indexes = await queries.index(client);
+      }
+      return filter ? dataSources.indexes.filter(filter) : dataSources.indexes;
+    };
+    
+    const resolveRoles = async (filter?: (role: PgRole) => boolean) => {
+      if (!dataSources.roles) {
+        dataSources.roles = await queries.roles(client);
+      }
+      return filter ? dataSources.roles.filter(filter) : dataSources.roles;
+    };
+    
+    const resolveForeignKeys = async (filter?: (fk: PgForeignKey) => boolean) => {
+      if (!dataSources.foreignKeys) {
+        dataSources.foreignKeys = await queries.foreignKeys(client);
+      }
+      return filter ? dataSources.foreignKeys.filter(filter) : dataSources.foreignKeys;
+    };
+    
+    // Create DataLoader for types
+    const typeLoader = new DataLoader<number, PgType | null>(async (typeOids) => {
+      // Get unique OIDs to avoid duplicate queries
+      const uniqueOids = [...new Set(typeOids)];
+      
+      // Fetch all types in a single query
+      const result = await client.query(`
+        SELECT
+          t.oid,
+          t.typname,
+          t.typtype,
+          t.typbasetype,
+          t.typelem,
+          t.typrelid,
+          n.nspname
+        FROM pg_catalog.pg_type t
+        JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
+        WHERE t.oid = ANY($1)
+      `, [uniqueOids]);
+      
+      // Create a map for quick lookup
+      const typeMap = new Map<number, PgType>();
+      result.rows.forEach(row => {
+        const type = PgTypeSchema.parse(row);
+        typeMap.set(type.oid, type);
+      });
+      
+      // Return types in the same order as the input keys
+      return typeOids.map(oid => typeMap.get(oid) || null);
+    });
+    
+    // Create DataLoader for namespaces
+    const namespaceLoader = new DataLoader<number, PgNamespace | null>(async (namespaceOids) => {
+      const uniqueOids = [...new Set(namespaceOids)];
+      
+      const result = await client.query(`
+        SELECT oid, nspname, nspowner
+        FROM pg_catalog.pg_namespace
+        WHERE oid = ANY($1)
+      `, [uniqueOids]);
+      
+      const namespaceMap = new Map<number, PgNamespace>();
+      result.rows.forEach(row => {
+        const namespace = PgNamespaceSchema.parse(row);
+        namespaceMap.set(namespace.oid, namespace);
+      });
+      
+      return namespaceOids.map(oid => namespaceMap.get(oid) || null);
+    });
+    
+    // Create DataLoader for classes (tables, views, etc.)
+    const classLoader = new DataLoader<number, PgClass | null>(async (classOids) => {
+      const uniqueOids = [...new Set(classOids)];
+      
+      const result = await client.query(`
+        SELECT
+          c.oid,
+          c.relname,
+          c.relnamespace,
+          c.relkind,
+          c.relispopulated,
+          c.relrowsecurity,
+          n.nspname
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+        WHERE c.oid = ANY($1)
+      `, [uniqueOids]);
+      
+      const classMap = new Map<number, PgClass>();
+      result.rows.forEach(row => {
+        const cls = PgClassSchema.parse(row);
+        classMap.set(cls.oid, cls);
+      });
+      
+      return classOids.map(oid => classMap.get(oid) || null);
+    });
+    
+    // Create DataLoader for attributes (columns) by relation OID
+    const attributeLoader = new DataLoader<number, PgAttribute[] | null>(async (relationOids) => {
+      const uniqueOids = [...new Set(relationOids)];
+      
+      const result = await client.query(`
+        SELECT
+          a.attrelid,
+          a.attname,
+          a.atttypid,
+          a.attnum,
+          a.attnotnull
+        FROM pg_catalog.pg_attribute a
+        WHERE a.attrelid = ANY($1)
+          AND a.attnum >= 1
+          AND NOT a.attisdropped
+        ORDER BY a.attrelid, a.attnum
+      `, [uniqueOids]);
+      
+      // Group attributes by relation OID
+      const attributeMap = new Map<number, PgAttribute[]>();
+      result.rows.forEach(row => {
+        const attr = PgAttributeSchema.parse(row);
+        if (!attributeMap.has(attr.attrelid)) {
+          attributeMap.set(attr.attrelid, []);
+        }
+        attributeMap.get(attr.attrelid)!.push(attr);
+      });
+      
+      return relationOids.map(oid => attributeMap.get(oid) || null);
+    });
+    
+    // Create DataLoader for triggers by table OID
+    const triggerLoader = new DataLoader<number, PgTrigger[] | null>(async (tableOids) => {
+      const uniqueOids = [...new Set(tableOids)];
+      
+      const result = await client.query(`
+        SELECT
+          t.oid,
+          t.tgname,
+          t.tgrelid
+        FROM pg_catalog.pg_trigger t
+        WHERE t.tgrelid = ANY($1)
+          AND NOT t.tgisinternal
+        ORDER BY t.tgrelid, t.tgname
+      `, [uniqueOids]);
+      
+      // Group triggers by table OID
+      const triggerMap = new Map<number, PgTrigger[]>();
+      result.rows.forEach(row => {
+        const trigger = PgTriggerSchema.parse(row);
+        if (!triggerMap.has(trigger.tgrelid)) {
+          triggerMap.set(trigger.tgrelid, []);
+        }
+        triggerMap.get(trigger.tgrelid)!.push(trigger);
+      });
+      
+      return tableOids.map(oid => triggerMap.get(oid) || null);
+    });
+    
+    // Create DataLoader for policies by table OID
+    const policyLoader = new DataLoader<number, PgPolicy[] | null>(async (tableOids) => {
+      const uniqueOids = [...new Set(tableOids)];
+      
+      const result = await client.query(`
+        SELECT
+          p.oid,
+          p.polname,
+          p.polrelid,
+          p.polcmd,
+          coalesce(array_agg(r.rolname::text) filter (where r.rolname is not null), '{}') as polroles,
+          pg_get_expr(p.polqual, p.polrelid) as polqual,
+          pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck
+        FROM pg_catalog.pg_policy p
+        LEFT JOIN pg_catalog.pg_roles r ON r.oid = ANY(p.polroles)
+        WHERE p.polrelid = ANY($1)
+        GROUP BY
+          p.oid,
+          p.polname,
+          p.polrelid,
+          p.polcmd,
+          p.polqual,
+          p.polwithcheck
+        ORDER BY p.polrelid, p.polname
+      `, [uniqueOids]);
+      
+      // Group policies by table OID
+      const policyMap = new Map<number, PgPolicy[]>();
+      result.rows.forEach(row => {
+        const policy = PgPolicySchema.parse(row);
+        if (!policyMap.has(policy.polrelid)) {
+          policyMap.set(policy.polrelid, []);
+        }
+        policyMap.get(policy.polrelid)!.push(policy);
+      });
+      
+      return tableOids.map(oid => policyMap.get(oid) || null);
+    });
+    
     return {
       client,
-      pg_database,
-      pg_namespaces,
-      pg_classes,
-      pg_attributes,
-      pg_triggers,
-      pg_policies,
-      pg_types,
-      pg_enums,
-      pg_index,
-      pg_roles,
-      pg_foreign_keys,
+      resolveDatabase,
+      resolveNamespaces,
+      resolveClasses,
+      resolveAttributes,
+      resolveTriggers,
+      resolvePolicies,
+      resolveTypes,
+      resolveEnums,
+      resolveIndexes,
+      resolveRoles,
+      resolveForeignKeys,
+      typeLoader,
+      namespaceLoader,
+      classLoader,
+      attributeLoader,
+      triggerLoader,
+      policyLoader,
+      dataSources
     };
   } catch (err) {
     console.error("error loading data:", err);
