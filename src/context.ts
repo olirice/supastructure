@@ -89,24 +89,6 @@ export const queries = {
     return classRows.rows.map((r) => PgClassSchema.parse(r));
   },
 
-  async classesByNamespace(client: pg.Client | pg.PoolClient, namespaceOid: number): Promise<PgClass[]> {
-    const result = await client.query(`
-      select
-        c.oid,
-        c.relname,
-        c.relnamespace,
-        c.relkind,
-        c.relispopulated,
-        c.relrowsecurity,
-        n.nspname
-      from pg_catalog.pg_class c
-      join pg_catalog.pg_namespace n on c.relnamespace = n.oid
-      where c.relnamespace = $1
-      order by c.relname
-    `, [namespaceOid]);
-    return result.rows.map((r) => PgClassSchema.parse(r));
-  },
-
   async classByOid(client: pg.Client | pg.PoolClient, oid: number): Promise<PgClass | null> {
     const result = await client.query(`
       select
@@ -166,23 +148,6 @@ export const queries = {
     return attrRows.rows.map((r) => PgAttributeSchema.parse(r));
   },
 
-  async attributesByRelation(client: pg.Client | pg.PoolClient, relationOid: number): Promise<PgAttribute[]> {
-    const result = await client.query(`
-      select
-        a.attrelid,
-        a.attname,
-        a.atttypid,
-        a.attnum,
-        a.attnotnull
-      from pg_catalog.pg_attribute a
-      where a.attrelid = $1
-        and a.attnum >= 1
-        and not a.attisdropped
-      order by a.attnum
-    `, [relationOid]);
-    return result.rows.map((r) => PgAttributeSchema.parse(r));
-  },
-
   // Trigger queries
   async triggers(client: pg.Client | pg.PoolClient): Promise<PgTrigger[]> {
     const trigRows = await client.query(`
@@ -199,20 +164,6 @@ export const queries = {
       order by n.nspname, t.tgname
     `);
     return trigRows.rows.map((r) => PgTriggerSchema.parse(r));
-  },
-
-  async triggersByTable(client: pg.Client | pg.PoolClient, tableOid: number): Promise<PgTrigger[]> {
-    const result = await client.query(`
-      select
-        t.oid,
-        t.tgname,
-        t.tgrelid
-      from pg_catalog.pg_trigger t
-      where t.tgrelid = $1
-        and not t.tgisinternal
-      order by t.tgname
-    `, [tableOid]);
-    return result.rows.map((r) => PgTriggerSchema.parse(r));
   },
 
   async triggerByOid(client: pg.Client | pg.PoolClient, oid: number): Promise<PgTrigger | null> {
