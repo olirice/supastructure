@@ -24,9 +24,11 @@ import {
 } from "./types.js";
 import pg from "pg";
 import DataLoader from "dataloader";
-// Using DataLoader for efficient batched loading
 
-const { Client } = pg;
+/**
+ * Database query functions for PostgreSQL metadata
+ * These functions are used directly or by DataLoaders to fetch data
+ */
 
 export const queries = {
   // Database queries
@@ -445,10 +447,18 @@ export const queries = {
   },
 };
 
+/**
+ * Request context interface for GraphQL resolvers
+ * Provides access to database client, data loaders, and resolver functions
+ */
 export interface ReqContext {
+  /** PostgreSQL client for direct database access */
   client: pg.Client | pg.PoolClient;
   
-  // Efficient data loading with caching
+  /** 
+   * Resolver functions that efficiently load and cache data
+   * These use the dataSources cache to avoid redundant queries
+   */
   resolveDatabase: () => Promise<PgDatabase>;
   resolveNamespaces: (filter?: (ns: PgNamespace) => boolean) => Promise<PgNamespace[]>;
   resolveClasses: (filter?: (cls: PgClass) => boolean) => Promise<PgClass[]>;
@@ -461,7 +471,11 @@ export interface ReqContext {
   resolveRoles: (filter?: (role: PgRole) => boolean) => Promise<PgRole[]>;
   resolveForeignKeys: (filter?: (fk: PgForeignKey) => boolean) => Promise<PgForeignKey[]>;
   
-  // DataLoaders for batched SQL queries
+  /**
+   * DataLoaders for efficient batched SQL queries
+   * These reduce the N+1 query problem by batching multiple individual
+   * lookups into a single query and caching results
+   */
   typeLoader: DataLoader<number, PgType | null>;
   namespaceLoader: DataLoader<number, PgNamespace | null>;
   classLoader: DataLoader<number, PgClass | null>;
@@ -469,7 +483,10 @@ export interface ReqContext {
   triggerLoader: DataLoader<number, PgTrigger[] | null>;
   policyLoader: DataLoader<number, PgPolicy[] | null>;
   
-  // Cached data sources
+  /** 
+   * Cached data sources to avoid redundant queries
+   * These are populated on-demand by resolver functions
+   */
   dataSources: {
     database?: PgDatabase;
     namespaces?: PgNamespace[];
@@ -485,14 +502,26 @@ export interface ReqContext {
   };
 }
 
+/**
+ * Database configuration interface
+ */
 export interface DbConfig {
+  /** PostgreSQL username */
   user: string;
+  /** Database server hostname or IP address */
   host: string;
+  /** Database name to connect to */
   database: string;
+  /** PostgreSQL password */
   password: string;
+  /** PostgreSQL server port */
   port: number;
 }
 
+/**
+ * Properly release a database client based on its type
+ * @param client - The PostgreSQL client to release
+ */
 export async function releaseClient(
   client: pg.Client | pg.PoolClient
 ): Promise<void> {
@@ -505,6 +534,12 @@ export async function releaseClient(
   }
 }
 
+/**
+ * Creates a request context with database client, data loaders, and resolver functions
+ * @param dbConfig - Database connection configuration
+ * @param existingClient - Optional existing database client to use instead of creating a new one
+ * @returns A request context object for GraphQL resolvers
+ */
 export async function context(
   dbConfig: DbConfig,
   existingClient?: pg.Client | pg.PoolClient
