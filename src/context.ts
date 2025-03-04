@@ -227,31 +227,6 @@ export const queries = {
     return policyRows.rows.map((r) => PgPolicySchema.parse(r));
   },
 
-  async policiesByTable(client: pg.Client | pg.PoolClient, tableOid: number): Promise<PgPolicy[]> {
-    const result = await client.query(`
-      select
-        p.oid,
-        p.polname,
-        p.polrelid,
-        p.polcmd,
-        coalesce(array_agg(r.rolname::text) filter (where r.rolname is not null), '{}') as polroles,
-        pg_get_expr(p.polqual, p.polrelid) as polqual,
-        pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck
-      from pg_catalog.pg_policy p
-      left join pg_catalog.pg_roles r on r.oid = any(p.polroles)
-      where p.polrelid = $1
-      group by
-        p.oid,
-        p.polname,
-        p.polrelid,
-        p.polcmd,
-        p.polqual,
-        p.polwithcheck
-      order by p.polname
-    `, [tableOid]);
-    return result.rows.map((r) => PgPolicySchema.parse(r));
-  },
-
   // Types queries
   async types(client: pg.Client | pg.PoolClient): Promise<PgType[]> {
     const typeRows = await client.query(`
