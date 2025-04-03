@@ -225,17 +225,17 @@ export const resolvers = {
     policy: async (_p: unknown, args: any, ctx: ReqContext): Promise<PgPolicy | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Policy") {
-        const policies = await ctx.resolvePolicies(p => p.oid === fromId.oid);
-        return singleResultOrError(policies, "Policy");
+        return ctx.policyLoader.load(fromId.oid);
       }
       if (args.oid) {
-        const policies = await ctx.resolvePolicies(p => p.oid === args.oid);
-        return singleResultOrError(policies, "Policy");
+        return ctx.policyLoader.load(args.oid);
       }
       if (args.schemaName && args.name) {
         const ns = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!ns) return null;
         
+        // For looking up by name, we still need to use the resolvePolicies method
+        // since we don't have a dedicated loader for name lookups
         const classes = await ctx.resolveClasses();
         const policies = await ctx.resolvePolicies();
         
@@ -338,8 +338,7 @@ export const resolvers = {
           return ctx.triggerLoader.load(info.oid);
         }
         case "Policy": {
-          const policies = await ctx.resolvePolicies(p => p.oid === info.oid);
-          return policies.length > 0 ? policies[0] : null;
+          return ctx.policyLoader.load(info.oid);
         }
         case "PgType": {
           console.log("Loading PgType node with oid:", info.oid);
@@ -620,7 +619,7 @@ export const resolvers = {
     },
     policies: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
       // Use DataLoader to batch and cache policy lookups by table OID
-      const policies = await ctx.policyLoader.load(p.oid) || [];
+      const policies = await ctx.policiesByRelationLoader.load(p.oid);
       return paginate(policies, {
         first: args.first,
         after: args.after,

@@ -28,6 +28,7 @@ import { createNamespaceLoaders } from "./loaders/pg_namespaces.js";
 import { createClassLoaders } from "./loaders/pg_classes.js";
 import { attributeQueries, createAttributeLoaders } from "./loaders/pg_attributes.js";
 import { createTriggerLoaders, triggerQueries } from "./loaders/pg_triggers.js";
+import { createPolicyLoaders, policyQueries } from "./loaders/pg_policies.js";
 
 /**
  * Helper functions for parsing database rows into typed objects
@@ -374,7 +375,8 @@ export interface ReqContext {
   >;
   triggerLoader: DataLoader<number, PgTrigger | null>;
   triggersByRelationLoader: DataLoader<number, PgTrigger[]>;
-  policyLoader: DataLoader<number, PgPolicy[] | null>;
+  policyLoader: DataLoader<number, PgPolicy | null>;
+  policiesByRelationLoader: DataLoader<number, PgPolicy[]>;
   
   /** 
    * Cached data sources to avoid redundant queries
@@ -471,6 +473,9 @@ export async function context(
     // Create trigger loaders
     const { triggerLoader, triggersByRelationLoader, getAllTriggers } = createTriggerLoaders(client);
     
+    // Create policy loaders
+    const { policyLoader, policiesByRelationLoader, getAllPolicies } = createPolicyLoaders(client);
+    
     // Use namespace loaders to implement resolveNamespaces
     const resolveNamespaces = namespaceLoaders.getAllNamespaces;
     
@@ -484,10 +489,7 @@ export async function context(
     };
     
     const resolvePolicies = async (filter?: (policy: PgPolicy) => boolean) => {
-      if (!dataSources.policies) {
-        dataSources.policies = await queries.policies(client);
-      }
-      return filter ? dataSources.policies.filter(filter) : dataSources.policies;
+      return getAllPolicies(filter);
     };
     
     const resolveTypes = async (filter?: (type: PgType) => boolean) => {
@@ -622,42 +624,6 @@ export async function context(
       return relationOids.map(oid => attrMap.get(oid) || null);
     });
     
-    // Create DataLoader for policies by relation OID
-    const policyLoader = new DataLoader<number, PgPolicy[] | null>(async (tableOids) => {
-      const uniqueOids = [...new Set(tableOids)];
-      
-      const result = await client.query(`
-        SELECT
-          p.oid,
-          p.polrelid,
-          p.polname,
-          p.polcmd,
-          p.polpermissive,
-          pg_catalog.pg_get_expr(p.polqual, p.polrelid) as polqual,
-          pg_catalog.pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck,
-          array_to_string(p.polroles::name[], ',') as polroles,
-          c.relname,
-          c.relnamespace,
-          n.nspname
-        FROM pg_catalog.pg_policy p
-        JOIN pg_catalog.pg_class c ON p.polrelid = c.oid
-        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-        WHERE p.polrelid = ANY($1)
-      `, [uniqueOids]);
-      
-      // Group policies by table OID
-      const policyMap = new Map<number, PgPolicy[]>();
-      result.rows.forEach(row => {
-        const policy = PgPolicySchema.parse(row);
-        if (!policyMap.has(policy.polrelid)) {
-          policyMap.set(policy.polrelid, []);
-        }
-        policyMap.get(policy.polrelid)!.push(policy);
-      });
-      
-      return tableOids.map(oid => policyMap.get(oid) || null);
-    });
-    
     return {
       client,
       dataSources,
@@ -681,6 +647,7 @@ export async function context(
       triggerLoader,
       triggersByRelationLoader,
       policyLoader,
+      policiesByRelationLoader,
       namespaceLoader: namespaceLoaders.namespaceLoader,
       namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader
     };

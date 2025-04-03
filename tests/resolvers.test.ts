@@ -133,10 +133,19 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     });
   });
   
-  const policyLoader = new DataLoader<number, PgPolicy[] | null>(async (keys) => {
+  // PolicyLoader for loading by OID
+  const policyLoader = new DataLoader<number, PgPolicy | null>(async (keys) => {
+    return keys.map(key => {
+      const policy = policies.find(p => p.oid === key);
+      return policy || null;
+    });
+  });
+  
+  // PoliciesByRelationLoader for loading by table OID
+  const policiesByRelationLoader = new DataLoader<number, PgPolicy[]>(async (keys) => {
     return keys.map(key => {
       const tablePolicies = policies.filter(p => p.polrelid === key);
-      return tablePolicies.length > 0 ? tablePolicies : null;
+      return tablePolicies.length > 0 ? tablePolicies : [];
     });
   });
   
@@ -173,6 +182,7 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     triggerLoader,
     triggersByRelationLoader,
     policyLoader,
+    policiesByRelationLoader,
     dataSources,
     client: {
       query: jest.fn().mockResolvedValue({ rows: [] }),

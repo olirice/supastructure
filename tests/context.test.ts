@@ -97,12 +97,20 @@ describe("context", () => {
   
   it("should batch policy lookups with DataLoader", async () => {
     const mockClient = {
-      query: jest.fn().mockResolvedValue({
-        rows: [
-          { oid: 201, polname: "policy1", polrelid: 2000, polcmd: "r", polroles: [] },
-          { oid: 202, polname: "policy2", polrelid: 2000, polcmd: "w", polroles: [] }
-        ]
-      }),
+      query: jest.fn()
+        // First call is for policiesByRelationLoader (by relid)
+        .mockResolvedValueOnce({
+          rows: [
+            { oid: 201, polname: "policy1", polrelid: 2000, polcmd: "r", polroles: [] },
+            { oid: 202, polname: "policy2", polrelid: 2000, polcmd: "w", polroles: [] }
+          ]
+        })
+        // Second call is for policyLoader (by oid)
+        .mockResolvedValueOnce({
+          rows: [
+            { oid: 201, polname: "policy1", polrelid: 2000, polcmd: "r", polroles: [] }
+          ]
+        }),
       release: jest.fn(),
       connect: jest.fn(),
       end: jest.fn(),
@@ -110,19 +118,26 @@ describe("context", () => {
     
     const ctx = await context(dbConfig, mockClient);
     
-    // Load policies for a table
-    const policies = await ctx.policyLoader.load(2000);
+    // Test policiesByRelationLoader - Load policies for a table by relation OID
+    const policies = await ctx.policiesByRelationLoader.load(2000);
     
     // Verify policies were loaded correctly
     expect(policies).toHaveLength(2);
-    expect(policies![0]).toHaveProperty("oid", 201);
-    expect(policies![0]).toHaveProperty("polname", "policy1");
-    expect(policies![1]).toHaveProperty("oid", 202);
-    expect(policies![1]).toHaveProperty("polname", "policy2");
+    expect(policies[0]).toHaveProperty("oid", 201);
+    expect(policies[0]).toHaveProperty("polname", "policy1");
+    expect(policies[1]).toHaveProperty("oid", 202);
+    expect(policies[1]).toHaveProperty("polname", "policy2");
     
-    // Verify only one query was executed
-    expect(mockClient.query).toHaveBeenCalledTimes(1);
-    expect(mockClient.query.mock.calls[0][1][0]).toContain(2000);
+    // Now test policyLoader - Load a single policy by its OID
+    const policy = await ctx.policyLoader.load(201);
+    
+    // Verify policy was loaded correctly
+    expect(policy).not.toBeNull();
+    expect(policy).toHaveProperty("oid", 201);
+    expect(policy).toHaveProperty("polname", "policy1");
+    
+    // Verify queries were executed
+    expect(mockClient.query).toHaveBeenCalledTimes(2);
   });
 
   it("should batch namespace lookups by name with DataLoader", async () => {
