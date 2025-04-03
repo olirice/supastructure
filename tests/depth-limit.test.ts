@@ -45,7 +45,7 @@ describe("GraphQL Depth Limit Tests", () => {
       resolvers,
       validationRules: [
         // Use the same depth limit as in production
-        depthLimit(9)
+        depthLimit(9),
       ],
     });
   });
@@ -156,23 +156,24 @@ describe("GraphQL Depth Limit Tests", () => {
     `;
 
     const { errors, data } = await executeTestQuery(testServer, tooDeepQuery, {}, client);
-    
+
     // Log all errors for debugging
     if (errors) {
-      console.log('Validation errors:', JSON.stringify(errors, null, 2));
+      console.log("Validation errors:", JSON.stringify(errors, null, 2));
     }
-    
+
     // Should have validation errors
     expect(errors).toBeDefined();
     expect(errors && errors.length).toBeGreaterThan(0);
-    
+
     // Verify the error is about max depth
-    const depthError = errors?.some(error => 
-      error.message.includes('exceeds maximum depth') || 
-      error.message.includes('deeper than the maximum') ||
-      (error.extensions?.code === 'GRAPHQL_VALIDATION_FAILED' && 
-       error.message.toLowerCase().includes('depth'))
+    const depthError = errors?.some(
+      (error) =>
+        error.message.includes("exceeds maximum depth") ||
+        error.message.includes("deeper than the maximum") ||
+        (error.extensions?.code === "GRAPHQL_VALIDATION_FAILED" &&
+          error.message.toLowerCase().includes("depth"))
     );
     expect(depthError).toBe(true);
   });
-}); 
+});

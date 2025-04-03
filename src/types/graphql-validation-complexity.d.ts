@@ -1,15 +1,15 @@
-declare module 'graphql-validation-complexity' {
-  import { ValidationRule } from 'graphql';
-  
+declare module "graphql-validation-complexity" {
+  import { ValidationRule } from "graphql";
+
   /**
    * Creates a validation rule that limits the complexity of a GraphQL query
-   * 
+   *
    * @param maxCost - The maximum complexity allowed for a query
    * @param options - Configuration options for calculating complexity
    * @returns A GraphQL validation rule
    */
   export function createComplexityLimitRule(
-    maxCost: number, 
+    maxCost: number,
     options?: {
       scalarCost?: number;
       objectCost?: number;
@@ -18,4 +18,4 @@ declare module 'graphql-validation-complexity' {
       onField?: (field: any, args: any) => number | null;
     }
   ): ValidationRule;
-} 
+}

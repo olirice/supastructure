@@ -25,9 +25,9 @@ const typeDefs = gql(readFileSync("src/schema.graphql", "utf8"));
 // Create complexity limit rule with specified costs
 const complexityLimitRule = createComplexityLimitRule(1500, {
   // Set costs according to requirements
-  scalarCost: 1,    // Each scalar field costs 1 point
-  objectCost: 2,    // Each object field costs 2 points
-  listFactor: 10,   // List fields multiply cost by 10 × number of items
+  scalarCost: 1, // Each scalar field costs 1 point
+  objectCost: 2, // Each object field costs 2 points
+  listFactor: 10, // List fields multiply cost by 10 × number of items
 });
 
 const server = new ApolloServer<ReqContext>({
@@ -37,7 +37,7 @@ const server = new ApolloServer<ReqContext>({
     // Limit query depth to 9 levels to prevent excessive nesting
     depthLimit(9),
     // Apply complexity limit to prevent expensive queries
-    complexityLimitRule
+    complexityLimitRule,
   ],
   plugins: [
     {
