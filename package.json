@@ -8,7 +8,10 @@
     "start": "npm run compile && node ./dist/src/index.js",
     "dev": "nodemon --watch src --ext ts --exec \"npm run compile-and-run\"",
     "compile-and-run": "tsc && node ./dist/src/index.js",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "lint:fix": "eslint --fix \"src/**/*.ts\" \"tests/**/*.ts\""
   },
   "keywords": [],
   "author": "",
@@ -20,18 +23,25 @@
     "dotenv": "^16.4.7",
     "grafast": "^0.1.1-beta.19",
     "graphql": "^16.10.0",
+    "graphql-depth-limit": "^1.1.0",
     "graphql-tag": "^2.12.6",
+    "graphql-validation-complexity": "^0.4.2",
     "pg": "^8.13.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
+    "@types/graphql-depth-limit": "^1.1.6",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.6",
     "@types/pg": "^8.11.11",
+    "@typescript-eslint/eslint-plugin": "^8.29.0",
+    "@typescript-eslint/parser": "^8.29.0",
+    "eslint": "^9.23.0",
     "jest": "^29.7.0",
     "jest-environment-node": "^29.7.0",
     "nodemon": "^3.1.9",
+    "prettier": "^3.5.3",
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.3"
   }

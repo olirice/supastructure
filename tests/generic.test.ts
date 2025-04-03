@@ -1,4 +1,10 @@
-import { sortItems, paginate, decodeId, buildGlobalId, singleResultOrError } from "../src/generic.js";
+import {
+  sortItems,
+  paginate,
+  decodeId,
+  buildGlobalId,
+  singleResultOrError,
+} from "../src/generic.js";
 
 describe("generic", () => {
   it("should sort items in ascending order", () => {
@@ -15,7 +21,10 @@ describe("generic", () => {
 
   it("should paginate items", () => {
     const items = Array.from({ length: 20 }, (_, i) => ({ id: i + 1 }));
-    const result = paginate(items, { first: 5, cursorForNode: (node) => String(node.id) });
+    const result = paginate(items, {
+      first: 5,
+      cursorForNode: (node) => String(node.id),
+    });
     expect(result.edges).toHaveLength(5);
     expect(result.pageInfo.hasNextPage).toBe(true);
   });
@@ -28,7 +37,10 @@ describe("generic", () => {
     ];
 
     // First page
-    const firstPage = paginate(items, { first: 2, cursorForNode: (node) => String(node.id) });
+    const firstPage = paginate(items, {
+      first: 2,
+      cursorForNode: (node) => String(node.id),
+    });
     expect(firstPage.edges).toHaveLength(2);
     expect(firstPage.pageInfo.hasNextPage).toBe(true);
     expect(firstPage.pageInfo.endCursor).toBe(Buffer.from("2").toString("base64"));
@@ -36,7 +48,11 @@ describe("generic", () => {
     const afterCursor = firstPage.pageInfo.endCursor ?? undefined;
 
     // Second page
-    const secondPage = paginate(items, { first: 2, after: afterCursor, cursorForNode: (node) => String(node.id) });
+    const secondPage = paginate(items, {
+      first: 2,
+      after: afterCursor,
+      cursorForNode: (node) => String(node.id),
+    });
     expect(secondPage.edges).toHaveLength(1);
     expect(secondPage.pageInfo.hasNextPage).toBe(false);
     expect(secondPage.pageInfo.endCursor).toBe(Buffer.from("3").toString("base64"));
@@ -51,7 +67,7 @@ describe("generic", () => {
   it("should return invalid values for an invalid ID", () => {
     const decoded = decodeId("invalid_id");
     expect(decoded?.oid).toBeNaN();
-    expect(typeof decoded?.typeName).toBe('string');
+    expect(typeof decoded?.typeName).toBe("string");
   });
 
   it("should handle invalid base64 string in decodeId", () => {

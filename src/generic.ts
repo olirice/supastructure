@@ -14,9 +14,7 @@ export function sortItems<T>(
     if (typeof fa === "string" && typeof fb === "string") {
       return direction === "DESC" ? fb.localeCompare(fa) : fa.localeCompare(fb);
     }
-    return direction === "DESC"
-      ? (fb as number) - (fa as number)
-      : (fa as number) - (fb as number);
+    return direction === "DESC" ? (fb as number) - (fa as number) : (fa as number) - (fb as number);
   });
 }
 
@@ -38,7 +36,7 @@ export function paginate<T>(
   items: T[],
   { first = MAX_PAGE_SIZE, after, cursorForNode }: PaginateOptions<T>
 ): PaginatedResult<T> {
-  const limitedFirst = limitPageSize(first);
+  const limitedFirst = Math.max(1, Math.min(first, MAX_PAGE_SIZE));
   let sliceStart = 0;
   if (after) {
     const afterVal = parseInt(Buffer.from(after, "base64").toString(), 10);
@@ -82,19 +80,29 @@ export function buildGlobalId(typeName: string, oid: number): string {
   return Buffer.from(`${typeName}:${oid}`).toString("base64");
 }
 
-export function singleResultOrError<T>(
-  items: T[],
-  entityName: string
-): T | null {
+export function singleResultOrError<T>(items: T[], entityName: string): T | null {
   if (items.length > 1) {
-    throw new Error(
-      `Multiple ${entityName} results found. Provide more specific filters.`
-    );
+    throw new Error(`Multiple ${entityName} results found. Provide more specific filters.`);
   }
   return items.length === 1 ? items[0] : null;
 }
 
-export function limitPageSize(first: number) {
-  // Ensure the requested page size is at least 1 and doesn't exceed the maximum
-  return Math.max(1, Math.min(first, MAX_PAGE_SIZE));
+export function limitPageSize(first: number): number;
+export function limitPageSize<T>(items: T[], first?: number, offset?: number): T[];
+export function limitPageSize<T>(
+  itemsOrFirst: T[] | number,
+  first?: number,
+  offset?: number
+): T[] | number {
+  // If first argument is a number, this is the old usage
+  if (typeof itemsOrFirst === "number") {
+    return Math.max(1, Math.min(itemsOrFirst, MAX_PAGE_SIZE));
+  }
+
+  // New usage with array of items
+  const items = itemsOrFirst as T[];
+  const actualOffset = offset || 0;
+  const actualFirst = first ? Math.max(1, Math.min(first, MAX_PAGE_SIZE)) : MAX_PAGE_SIZE;
+
+  return items.slice(actualOffset, actualOffset + actualFirst);
 }

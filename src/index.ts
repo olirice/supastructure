@@ -4,7 +4,10 @@ import { startStandaloneServer } from "@apollo/server/standalone";
 import { readFileSync } from "fs";
 import { gql } from "graphql-tag";
 import { resolvers } from "./resolvers.js";
-import { context, DbConfig, ReqContext, releaseClient } from "./context.js";
+import type { DbConfig, ReqContext } from "./context.js";
+import { context, releaseClient } from "./context.js";
+import depthLimit from "graphql-depth-limit";
+import { createComplexityLimitRule } from "graphql-validation-complexity";
 
 // Load environment variables
 config();
@@ -19,9 +22,23 @@ export const dbConfig: DbConfig = {
 
 const typeDefs = gql(readFileSync("src/schema.graphql", "utf8"));
 
+// Create complexity limit rule with specified costs
+const complexityLimitRule = createComplexityLimitRule(1500, {
+  // Set costs according to requirements
+  scalarCost: 1, // Each scalar field costs 1 point
+  objectCost: 2, // Each object field costs 2 points
+  listFactor: 10, // List fields multiply cost by 10 × number of items
+});
+
 const server = new ApolloServer<ReqContext>({
   typeDefs,
   resolvers,
+  validationRules: [
+    // Limit query depth to 9 levels to prevent excessive nesting
+    depthLimit(9),
+    // Apply complexity limit to prevent expensive queries
+    complexityLimitRule,
+  ],
   plugins: [
     {
       async requestDidStart() {
@@ -46,6 +63,6 @@ if (process.env.NODE_ENV !== "test") {
       context: () => context(dbConfig),
     });
 
-    console.log(`server ready at: ${url}`);
+    // console.log(`server ready at: ${url}`);
   })();
 }
