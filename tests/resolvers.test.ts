@@ -1,6 +1,6 @@
 import { resolvers } from "../src/resolvers.js";
 import { ReqContext } from "../src/context.js";
-import { PgType, PgNamespace, PgClass, PgAttribute } from "../src/types.js";
+import { PgType, PgNamespace, PgClass, PgAttribute, PgTrigger, PgPolicy } from "../src/types.js";
 import DataLoader from "dataloader";
 
 function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
@@ -119,14 +119,21 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     cacheKeyFn: (key) => `${key.schemaName}.${key.tableName}`
   });
   
-  const triggerLoader = new DataLoader<number, any[] | null>(async (keys) => {
+  const triggerLoader = new DataLoader<number, PgTrigger | null>(async (keys) => {
     return keys.map(key => {
       const tableTriggers = triggers.filter(t => t.tgrelid === key);
-      return tableTriggers.length > 0 ? tableTriggers : null;
+      return tableTriggers.length > 0 ? tableTriggers[0] : null;
     });
   });
   
-  const policyLoader = new DataLoader<number, any[] | null>(async (keys) => {
+  const triggersByRelationLoader = new DataLoader<number, PgTrigger[]>(async (keys) => {
+    return keys.map(key => {
+      const tableTriggers = triggers.filter(t => t.tgrelid === key);
+      return tableTriggers.length > 0 ? tableTriggers : [];
+    });
+  });
+  
+  const policyLoader = new DataLoader<number, PgPolicy[] | null>(async (keys) => {
     return keys.map(key => {
       const tablePolicies = policies.filter(p => p.polrelid === key);
       return tablePolicies.length > 0 ? tablePolicies : null;
@@ -164,6 +171,7 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     attributesByRelationLoader,
     attributesByTableNameLoader,
     triggerLoader,
+    triggersByRelationLoader,
     policyLoader,
     dataSources,
     client: {

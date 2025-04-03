@@ -51,12 +51,21 @@ describe("context", () => {
   
   it("should batch trigger lookups with DataLoader", async () => {
     const mockClient = {
-      query: jest.fn().mockResolvedValue({
-        rows: [
-          { oid: 101, tgname: "trigger1", tgrelid: 1000 },
-          { oid: 102, tgname: "trigger2", tgrelid: 1000 }
-        ]
-      }),
+      query: jest.fn()
+        // First call is for triggerLoader (by OID)
+        .mockResolvedValueOnce({
+          rows: [
+            { oid: 101, tgname: "trigger1", tgrelid: 1000 },
+            { oid: 102, tgname: "trigger2", tgrelid: 1000 }
+          ]
+        })
+        // Second call is for triggersByRelationLoader (by tgrelid)
+        .mockResolvedValueOnce({
+          rows: [
+            { oid: 101, tgname: "trigger1", tgrelid: 1000 },
+            { oid: 102, tgname: "trigger2", tgrelid: 1000 }
+          ]
+        }),
       release: jest.fn(),
       connect: jest.fn(),
       end: jest.fn(),
@@ -64,19 +73,26 @@ describe("context", () => {
     
     const ctx = await context(dbConfig, mockClient);
     
-    // Load triggers for a table
-    const triggers = await ctx.triggerLoader.load(1000);
+    // Load trigger by OID
+    const trigger = await ctx.triggerLoader.load(101);
+    
+    // Verify trigger was loaded correctly
+    expect(trigger).toBeTruthy();
+    expect(trigger).toHaveProperty("oid", 101);
+    expect(trigger).toHaveProperty("tgname", "trigger1");
+    
+    // Also test triggersByRelationLoader which returns triggers by relation ID
+    const triggers = await ctx.triggersByRelationLoader.load(1000);
     
     // Verify triggers were loaded correctly
     expect(triggers).toHaveLength(2);
-    expect(triggers![0]).toHaveProperty("oid", 101);
-    expect(triggers![0]).toHaveProperty("tgname", "trigger1");
-    expect(triggers![1]).toHaveProperty("oid", 102);
-    expect(triggers![1]).toHaveProperty("tgname", "trigger2");
+    expect(triggers[0]).toHaveProperty("oid", 101);
+    expect(triggers[0]).toHaveProperty("tgname", "trigger1");
+    expect(triggers[1]).toHaveProperty("oid", 102);
+    expect(triggers[1]).toHaveProperty("tgname", "trigger2");
     
-    // Verify only one query was executed
-    expect(mockClient.query).toHaveBeenCalledTimes(1);
-    expect(mockClient.query.mock.calls[0][1][0]).toContain(1000);
+    // Verify queries were executed
+    expect(mockClient.query).toHaveBeenCalledTimes(2);
   });
   
   it("should batch policy lookups with DataLoader", async () => {

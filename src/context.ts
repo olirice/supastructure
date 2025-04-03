@@ -27,6 +27,7 @@ import DataLoader from "dataloader";
 import { createNamespaceLoaders } from "./loaders/pg_namespaces.js";
 import { createClassLoaders } from "./loaders/pg_classes.js";
 import { attributeQueries, createAttributeLoaders } from "./loaders/pg_attributes.js";
+import { createTriggerLoaders, triggerQueries } from "./loaders/pg_triggers.js";
 
 /**
  * Helper functions for parsing database rows into typed objects
@@ -371,7 +372,8 @@ export interface ReqContext {
     PgAttribute[] | null,
     string
   >;
-  triggerLoader: DataLoader<number, PgTrigger[] | null>;
+  triggerLoader: DataLoader<number, PgTrigger | null>;
+  triggersByRelationLoader: DataLoader<number, PgTrigger[]>;
   policyLoader: DataLoader<number, PgPolicy[] | null>;
   
   /** 
@@ -380,6 +382,7 @@ export interface ReqContext {
    */
   dataSources: {
     database?: PgDatabase;
+    namespaces?: PgNamespace[];
     classes?: PgClass[];
     attributes?: PgAttribute[];
     triggers?: PgTrigger[];
@@ -465,6 +468,9 @@ export async function context(
     // Create attribute loaders
     const attributeLoaders = createAttributeLoaders(client);
     
+    // Create trigger loaders
+    const { triggerLoader, triggersByRelationLoader, getAllTriggers } = createTriggerLoaders(client);
+    
     // Use namespace loaders to implement resolveNamespaces
     const resolveNamespaces = namespaceLoaders.getAllNamespaces;
     
@@ -474,10 +480,7 @@ export async function context(
     const resolveAttributes = attributeLoaders.getAllAttributes;
     
     const resolveTriggers = async (filter?: (trigger: PgTrigger) => boolean) => {
-      if (!dataSources.triggers) {
-        dataSources.triggers = await queries.triggers(client);
-      }
-      return filter ? dataSources.triggers.filter(filter) : dataSources.triggers;
+      return getAllTriggers(filter);
     };
     
     const resolvePolicies = async (filter?: (policy: PgPolicy) => boolean) => {
@@ -619,39 +622,6 @@ export async function context(
       return relationOids.map(oid => attrMap.get(oid) || null);
     });
     
-    // Create DataLoader for triggers by relation OID
-    const triggerLoader = new DataLoader<number, PgTrigger[] | null>(async (tableOids) => {
-      const uniqueOids = [...new Set(tableOids)];
-      
-      const result = await client.query(`
-        SELECT
-          t.oid,
-          t.tgrelid,
-          t.tgname,
-          pg_catalog.pg_get_triggerdef(t.oid) as tgdef,
-          c.relname,
-          c.relnamespace,
-          n.nspname
-        FROM pg_catalog.pg_trigger t
-        JOIN pg_catalog.pg_class c ON t.tgrelid = c.oid
-        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
-        WHERE t.tgrelid = ANY($1)
-        AND NOT t.tgisinternal
-      `, [uniqueOids]);
-      
-      // Group triggers by table OID
-      const triggerMap = new Map<number, PgTrigger[]>();
-      result.rows.forEach(row => {
-        const trigger = PgTriggerSchema.parse(row);
-        if (!triggerMap.has(trigger.tgrelid)) {
-          triggerMap.set(trigger.tgrelid, []);
-        }
-        triggerMap.get(trigger.tgrelid)!.push(trigger);
-      });
-      
-      return tableOids.map(oid => triggerMap.get(oid) || null);
-    });
-    
     // Create DataLoader for policies by relation OID
     const policyLoader = new DataLoader<number, PgPolicy[] | null>(async (tableOids) => {
       const uniqueOids = [...new Set(tableOids)];
@@ -690,6 +660,7 @@ export async function context(
     
     return {
       client,
+      dataSources,
       resolveDatabase,
       resolveNamespaces,
       resolveClasses,
@@ -708,8 +679,8 @@ export async function context(
       attributesByRelationLoader: attributeLoaders.attributesByRelationLoader,
       attributesByTableNameLoader: attributeLoaders.attributesByTableNameLoader,
       triggerLoader,
+      triggersByRelationLoader,
       policyLoader,
-      dataSources,
       namespaceLoader: namespaceLoaders.namespaceLoader,
       namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader
     };

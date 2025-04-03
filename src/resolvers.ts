@@ -335,8 +335,7 @@ export const resolvers = {
           return cls && cls.relkind === "i" ? cls : null;
         }
         case "Trigger": {
-          const triggers = await ctx.resolveTriggers(t => t.oid === info.oid);
-          return triggers.length > 0 ? triggers[0] : null;
+          return ctx.triggerLoader.load(info.oid);
         }
         case "Policy": {
           const policies = await ctx.resolvePolicies(p => p.oid === info.oid);
@@ -630,7 +629,7 @@ export const resolvers = {
     },
     triggers: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
       // Use DataLoader to batch and cache trigger lookups by table OID
-      const triggers = await ctx.triggerLoader.load(p.oid) || [];
+      const triggers = await ctx.triggersByRelationLoader.load(p.oid);
       return paginate(triggers, {
         first: args.first,
         after: args.after,
