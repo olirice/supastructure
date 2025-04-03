@@ -7,6 +7,10 @@ import type {
   PgAttribute,
   PgTrigger,
   PgPolicy,
+  PgRole,
+  PgEnum,
+  PgIndex,
+  PgForeignKey,
 } from "../src/types.js";
 import DataLoader from "dataloader";
 
@@ -155,6 +159,103 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     });
   });
 
+  // Create typeByNameLoader
+  const typeByNameLoader = new DataLoader<
+    { schemaName: string; typeName: string },
+    PgType | null,
+    string
+  >(
+    async (keys) => {
+      return keys.map((key) => {
+        const namespace = namespaces.find((n) => n.nspname === key.schemaName);
+        if (!namespace) return null;
+        const type = types.find((t) => t.typname === key.typeName && t.typnamespace === namespace.oid);
+        return type || null;
+      });
+    },
+    {
+      cacheKeyFn: (key) => `${key.schemaName}.${key.typeName}`,
+    }
+  );
+
+  // Create enumByTypeIdLoader
+  const enumByTypeIdLoader = new DataLoader<number, PgEnum | null>(async (keys) => {
+    return keys.map((key) => {
+      const enum_ = enums.find((e) => e.enumtypid === key);
+      return enum_ || null;
+    });
+  });
+
+  // Create enumByNameLoader
+  const enumByNameLoader = new DataLoader<
+    { schemaName: string; enumName: string },
+    PgEnum | null,
+    string
+  >(
+    async (keys) => {
+      return keys.map(() => null); // Mock implementation
+    },
+    {
+      cacheKeyFn: (key) => `${key.schemaName}.${key.enumName}`,
+    }
+  );
+
+  // Create indexLoader
+  const indexLoader = new DataLoader<number, PgIndex | null>(async (keys) => {
+    return keys.map((key) => {
+      const index = indexes.find((i) => i.indexrelid === key);
+      return index || null;
+    });
+  });
+
+  // Create indexesByRelationLoader
+  const indexesByRelationLoader = new DataLoader<number, PgIndex[]>(async (keys) => {
+    return keys.map((key) => {
+      const relationIndexes = indexes.filter((i) => i.indrelid === key);
+      return relationIndexes;
+    });
+  });
+
+  // Create roleLoader
+  const roleLoader = new DataLoader<number, PgRole | null>(async (keys) => {
+    return keys.map((key) => {
+      const role = roles.find((r) => r.oid === key);
+      return role || null;
+    });
+  });
+
+  // Create roleByNameLoader
+  const roleByNameLoader = new DataLoader<string, PgRole | null>(async (keys) => {
+    return keys.map((key) => {
+      const role = roles.find((r) => r.rolname === key);
+      return role || null;
+    });
+  });
+
+  // Create foreignKeyLoader
+  const foreignKeyLoader = new DataLoader<number, PgForeignKey | null>(async (keys) => {
+    return keys.map((key) => {
+      const fk = foreignKeys.find((f) => f.oid === key);
+      return fk || null;
+    });
+  });
+
+  // Create foreignKeysByRelationLoader
+  const foreignKeysByRelationLoader = new DataLoader<number, PgForeignKey[]>(async (keys) => {
+    return keys.map((key) => {
+      const relationFks = foreignKeys.filter((f) => f.conrelid === key);
+      return relationFks;
+    });
+  });
+
+  // Create foreignKeysByReferencedRelationLoader
+  const foreignKeysByReferencedRelationLoader = new DataLoader<number, PgForeignKey[]>(async (keys) => {
+    return keys.map((key) => {
+      const referencedFks = foreignKeys.filter((f) => f.confrelid === key);
+      return referencedFks;
+    });
+  });
+
   return {
     resolveDatabase: jest.fn().mockResolvedValue(database),
     resolveNamespaces: jest
@@ -202,6 +303,7 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
         Promise.resolve(filter ? foreignKeys.filter(filter) : foreignKeys)
       ),
     typeLoader,
+    typeByNameLoader,
     namespaceLoader,
     namespaceByNameLoader,
     classLoader,
@@ -213,6 +315,15 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     triggersByRelationLoader,
     policyLoader,
     policiesByRelationLoader,
+    enumByTypeIdLoader,
+    enumByNameLoader,
+    indexLoader,
+    indexesByRelationLoader,
+    roleLoader,
+    roleByNameLoader,
+    foreignKeyLoader,
+    foreignKeysByRelationLoader,
+    foreignKeysByReferencedRelationLoader,
     dataSources,
     client: {
       query: jest.fn().mockResolvedValue({ rows: [] }),
