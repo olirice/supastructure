@@ -1,6 +1,7 @@
 import DataLoader from "dataloader";
-import { Client, PoolClient } from "pg";
-import { PgAttribute, PgAttributeSchema } from "../types.js";
+import type { Client, PoolClient } from "pg";
+import type { PgAttribute} from "../types.js";
+import { PgAttributeSchema } from "../types.js";
 
 /**
  * Options for querying attributes
@@ -10,17 +11,17 @@ export interface AttributeQueryOptions {
    * Filter by relation OIDs (table/view OIDs)
    */
   relationOids?: number[];
-  
+
   /**
    * Filter by table names
    */
   tableNames?: Array<{ schemaName: string; tableName: string }>;
-  
+
   /**
    * Filter by column names
    */
   columnNames?: string[];
-  
+
   /**
    * Skip system schemas
    */
@@ -45,12 +46,7 @@ export const attributeQueries = {
     client: Client | PoolClient,
     options: AttributeQueryOptions = {}
   ): Promise<PgAttribute[]> {
-    const {
-      relationOids,
-      tableNames,
-      columnNames,
-      skipSystemSchemas = true,
-    } = options;
+    const { relationOids, tableNames, columnNames, skipSystemSchemas = true } = options;
 
     // Build WHERE clauses
     const whereConditions: string[] = [];
@@ -84,7 +80,9 @@ export const attributeQueries = {
 
     // Filter system schemas
     if (skipSystemSchemas) {
-      whereConditions.push(`n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')`);
+      whereConditions.push(
+        `n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')`
+      );
     }
 
     // Standard attribute filtering conditions (for user tables)
@@ -92,9 +90,7 @@ export const attributeQueries = {
     whereConditions.push("NOT a.attisdropped");
 
     // Build the query
-    const whereClause = whereConditions.length
-      ? `WHERE ${whereConditions.join(" AND ")}`
-      : "";
+    const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
     const sql = `
       SELECT
@@ -130,7 +126,8 @@ export const attributeQueries = {
     schemaName: string,
     tableName: string
   ): Promise<PgAttribute[]> {
-    const result = await client.query(`
+    const result = await client.query(
+      `
       SELECT
         a.attrelid,
         a.attname,
@@ -144,10 +141,12 @@ export const attributeQueries = {
         AND a.attnum > 0
         AND NOT a.attisdropped
       ORDER BY a.attnum
-    `, [schemaName, tableName]);
-    
-    return result.rows.map(row => PgAttributeSchema.parse(row));
-  }
+    `,
+      [schemaName, tableName]
+    );
+
+    return result.rows.map((row) => PgAttributeSchema.parse(row));
+  },
 };
 
 /**
@@ -160,11 +159,11 @@ export function createAttributeLoaders(client: Client | PoolClient) {
   const attributesByRelationLoader = new DataLoader<number, PgAttribute[] | null>(
     async (relationOids) => {
       const uniqueOids = [...new Set(relationOids)];
-      
+
       const attributes = await attributeQueries.query(client, {
         relationOids: uniqueOids,
       });
-      
+
       // Group attributes by relation OID
       const attrMap = new Map<number, PgAttribute[]>();
       attributes.forEach((attr) => {
@@ -173,7 +172,7 @@ export function createAttributeLoaders(client: Client | PoolClient) {
         }
         attrMap.get(attr.attrelid)!.push(attr);
       });
-      
+
       // Return attributes for each relation OID in the original order
       return relationOids.map((oid) => attrMap.get(oid) || null);
     }
@@ -190,12 +189,13 @@ export function createAttributeLoaders(client: Client | PoolClient) {
     async (keys) => {
       // Process each table name individually using the helper query function
       const results = await Promise.all(
-        keys.map(({ schemaName, tableName }) => 
-          attributeQueries.queryByTableName(client, schemaName, tableName)
-            .then(attributes => attributes.length > 0 ? attributes : null)
+        keys.map(({ schemaName, tableName }) =>
+          attributeQueries
+            .queryByTableName(client, schemaName, tableName)
+            .then((attributes) => (attributes.length > 0 ? attributes : null))
         )
       );
-      
+
       return results;
     },
     {
@@ -213,7 +213,7 @@ export function createAttributeLoaders(client: Client | PoolClient) {
     const attributes = await attributeQueries.query(client, {
       skipSystemSchemas: true,
     });
-    
+
     return filter ? attributes.filter(filter) : attributes;
   };
 
@@ -222,4 +222,4 @@ export function createAttributeLoaders(client: Client | PoolClient) {
     attributesByTableNameLoader,
     getAllAttributes,
   };
-} 
+}

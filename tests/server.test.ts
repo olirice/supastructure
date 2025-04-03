@@ -1,9 +1,11 @@
 import { ApolloServer } from "@apollo/server";
-import { Pool, PoolClient } from "pg";
+import type { PoolClient } from "pg";
+import { Pool } from "pg";
 import fs from "fs";
 import { gql } from "graphql-tag";
 import { resolvers } from "../src/resolvers.js";
-import { context, ReqContext, DbConfig } from "../src/context.js";
+import type { ReqContext} from "../src/context.js";
+import { context, DbConfig } from "../src/context.js";
 import { dbConfig } from "../src/index.js";
 import { buildGlobalId } from "../src/generic.js";
 import { table } from "console";
@@ -37,10 +39,8 @@ async function executeTestQuery(
 
   //console.log("GraphQL Response:", response.body);
 
-  const errors =
-    response.body.kind === "single" ? response.body.singleResult.errors : null;
-  const data =
-    response.body.kind === "single" ? response.body.singleResult.data : null;
+  const errors = response.body.kind === "single" ? response.body.singleResult.errors : null;
+  const data = response.body.kind === "single" ? response.body.singleResult.data : null;
 
   if (errors) {
     console.error("GraphQL Errors:", errors);
@@ -382,39 +382,39 @@ describe("GraphQL Server - Transactional Tests", () => {
                 id: expect.any(String),
                 name: "id",
                 attnum: 1,
-                atttypid: expect.any(Number)
-              }
+                atttypid: expect.any(Number),
+              },
             },
             {
               cursor: expect.any(String),
               node: {
                 id: expect.any(String),
-                name: "name", 
+                name: "name",
                 attnum: 2,
-                atttypid: expect.any(Number)
-              }
-            }
+                atttypid: expect.any(Number),
+              },
+            },
           ]),
           nodes: expect.arrayContaining([
             {
               id: expect.any(String),
               name: "id",
-              attnum: 1, 
-              atttypid: expect.any(Number)
+              attnum: 1,
+              atttypid: expect.any(Number),
             },
             {
               id: expect.any(String),
               name: "name",
               attnum: 2,
-              atttypid: expect.any(Number)
-            }
+              atttypid: expect.any(Number),
+            },
           ]),
           pageInfo: {
             hasNextPage: false,
-            endCursor: expect.any(String)
-          }
-        }
-      }
+            endCursor: expect.any(String),
+          },
+        },
+      },
     });
     expect(errors).toBeUndefined();
   });
@@ -610,7 +610,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     });
     expect(errors).toBeUndefined();
   });
-
 
   // =====================================
   // TEST: Fetch Schema for a Specific Table
@@ -1030,7 +1029,9 @@ describe("GraphQL Server - Transactional Tests", () => {
   // =====================================
   it("fetches columns for a specific materialized view", async () => {
     await client.query("create schema test_schema;");
-    await client.query("create materialized view test_schema.test_matview as select 1 as id, 'test' as name;");
+    await client.query(
+      "create materialized view test_schema.test_matview as select 1 as id, 'test' as name;"
+    );
 
     const { data, errors } = await executeTestQuery(
       testServer,
@@ -2177,8 +2178,8 @@ describe("GraphQL Server - Transactional Tests", () => {
       name: "_int4",
       kind: "ARRAY",
       elementType: {
-        name: "int4"
-      }
+        name: "int4",
+      },
     });
     expect(errors).toBeUndefined();
   });
@@ -2291,11 +2292,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       database: {
         schemas: {
-          nodes: [
-            { name: "schema_a" },
-            { name: "schema_b" },
-            { name: "schema_c" },
-          ],
+          nodes: [{ name: "schema_a" }, { name: "schema_b" }, { name: "schema_c" }],
         },
       },
     });
@@ -2331,11 +2328,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       schema: {
         tables: {
-          nodes: [
-            { name: "table_a" },
-            { name: "table_b" },
-            { name: "table_c" },
-          ],
+          nodes: [{ name: "table_a" }, { name: "table_b" }, { name: "table_c" }],
         },
       },
     });
@@ -2371,11 +2364,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       database: {
         schemas: {
-          nodes: [
-            { name: "schema_c" },
-            { name: "schema_b" },
-            { name: "schema_a" },
-          ],
+          nodes: [{ name: "schema_c" }, { name: "schema_b" }, { name: "schema_a" }],
         },
       },
     });
@@ -2411,11 +2400,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       schema: {
         tables: {
-          nodes: [
-            { name: "table_b" },
-            { name: "table_c" },
-            { name: "table_a" },
-          ],
+          nodes: [{ name: "table_b" }, { name: "table_c" }, { name: "table_a" }],
         },
       },
     });
@@ -2451,11 +2436,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       schema: {
         views: {
-          nodes: [
-            { name: "view_a" },
-            { name: "view_b" },
-            { name: "view_c" },
-          ],
+          nodes: [{ name: "view_a" }, { name: "view_b" }, { name: "view_c" }],
         },
       },
     });
@@ -2492,11 +2473,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       schema: {
         materializedViews: {
-          nodes: [
-            { name: "matview_a" },
-            { name: "matview_b" },
-            { name: "matview_c" },
-          ],
+          nodes: [{ name: "matview_a" }, { name: "matview_b" }, { name: "matview_c" }],
         },
       },
     });
@@ -2513,7 +2490,7 @@ describe("GraphQL Server - Transactional Tests", () => {
       where datname = current_database()
     `);
     const databaseOid = result.rows[0].oid;
-    
+
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -2796,7 +2773,7 @@ describe("GraphQL Server - Transactional Tests", () => {
         name: "test_trigger",
         table: {
           name: "test_table",
-        }
+        },
       }),
     });
     expect(errors).toBeUndefined();
@@ -2850,7 +2827,7 @@ describe("GraphQL Server - Transactional Tests", () => {
         name: "test_policy",
         table: {
           name: "test_table",
-        }
+        },
       }),
     });
     expect(errors).toBeUndefined();
@@ -2892,23 +2869,20 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.database?.schemas).toMatchObject({
       edges: [
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
+          cursor: expect.any(String),
         },
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
-        }
+          cursor: expect.any(String),
+        },
       ],
       pageInfo: {
         hasNextPage: expect.any(Boolean),
-        endCursor: expect.any(String)
+        endCursor: expect.any(String),
       },
-      nodes: [
-        { name: expect.any(String) },
-        { name: expect.any(String) }
-      ]
+      nodes: [{ name: expect.any(String) }, { name: expect.any(String) }],
     });
     expect(errors).toBeUndefined();
   });
@@ -2950,23 +2924,20 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.schema?.tables).toMatchObject({
       edges: [
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
+          cursor: expect.any(String),
         },
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
-        }
+          cursor: expect.any(String),
+        },
       ],
       pageInfo: {
         hasNextPage: expect.any(Boolean),
-        endCursor: expect.any(String)
+        endCursor: expect.any(String),
       },
-      nodes: [
-        { name: expect.any(String) },
-        { name: expect.any(String) }
-      ]
+      nodes: [{ name: expect.any(String) }, { name: expect.any(String) }],
     });
     expect(errors).toBeUndefined();
   });
@@ -3007,23 +2978,20 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.table?.columns).toMatchObject({
       edges: [
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
+          cursor: expect.any(String),
         },
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
-        }
+          cursor: expect.any(String),
+        },
       ],
       pageInfo: {
         hasNextPage: expect.any(Boolean),
-        endCursor: expect.any(String)
+        endCursor: expect.any(String),
       },
-      nodes: [
-        { name: expect.any(String) },
-        { name: expect.any(String) }
-      ]
+      nodes: [{ name: expect.any(String) }, { name: expect.any(String) }],
     });
     expect(errors).toBeUndefined();
   });
@@ -3065,23 +3033,20 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.schema?.views).toMatchObject({
       edges: [
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
+          cursor: expect.any(String),
         },
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
-        }
+          cursor: expect.any(String),
+        },
       ],
       pageInfo: {
         hasNextPage: expect.any(Boolean),
-        endCursor: expect.any(String)
+        endCursor: expect.any(String),
       },
-      nodes: [
-        { name: expect.any(String) },
-        { name: expect.any(String) }
-      ]
+      nodes: [{ name: expect.any(String) }, { name: expect.any(String) }],
     });
     expect(errors).toBeUndefined();
   });
@@ -3123,23 +3088,20 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.schema?.materializedViews).toMatchObject({
       edges: [
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
+          cursor: expect.any(String),
         },
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
-        }
+          cursor: expect.any(String),
+        },
       ],
       pageInfo: {
         hasNextPage: expect.any(Boolean),
-        endCursor: expect.any(String)
+        endCursor: expect.any(String),
       },
-      nodes: [
-        { name: expect.any(String) },
-        { name: expect.any(String) }
-      ]
+      nodes: [{ name: expect.any(String) }, { name: expect.any(String) }],
     });
     expect(errors).toBeUndefined();
   });
@@ -3182,18 +3144,16 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.table?.indexes).toMatchObject({
       edges: expect.arrayContaining([
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
-        }
+          cursor: expect.any(String),
+        },
       ]),
       pageInfo: {
         hasNextPage: expect.any(Boolean),
-        endCursor: expect.any(String)
+        endCursor: expect.any(String),
       },
-      nodes: expect.arrayContaining([
-        { name: expect.any(String) }
-      ])
+      nodes: expect.arrayContaining([{ name: expect.any(String) }]),
     });
     expect(errors).toBeUndefined();
   });
@@ -3206,7 +3166,9 @@ describe("GraphQL Server - Transactional Tests", () => {
     await client.query("create table test_schema.test_table (id serial primary key);");
     await client.query("alter table test_schema.test_table enable row level security;");
     await client.query("create policy policy1 on test_schema.test_table for select using (true);");
-    await client.query("create policy policy2 on test_schema.test_table for insert with check (true);");
+    await client.query(
+      "create policy policy2 on test_schema.test_table for insert with check (true);"
+    );
 
     const { data, errors } = await executeTestQuery(
       testServer,
@@ -3237,23 +3199,20 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.table?.policies).toMatchObject({
       edges: [
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
+          cursor: expect.any(String),
         },
-        { 
+        {
           node: { name: expect.any(String) },
-          cursor: expect.any(String)
-        }
+          cursor: expect.any(String),
+        },
       ],
       pageInfo: {
         hasNextPage: expect.any(Boolean),
-        endCursor: expect.any(String)
+        endCursor: expect.any(String),
       },
-      nodes: [
-        { name: expect.any(String) },
-        { name: expect.any(String) }
-      ]
+      nodes: [{ name: expect.any(String) }, { name: expect.any(String) }],
     });
     expect(errors).toBeUndefined();
   });
@@ -3288,12 +3247,12 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       table_with_rls: {
         name: "table_with_rls",
-        rowLevelSecurityEnabled: true
+        rowLevelSecurityEnabled: true,
       },
       table_without_rls: {
-        name: "table_without_rls", 
-        rowLevelSecurityEnabled: false
-      }
+        name: "table_without_rls",
+        rowLevelSecurityEnabled: false,
+      },
     });
     expect(errors).toBeUndefined();
   });
@@ -3316,7 +3275,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     );
 
     expect(data).toMatchObject({
-      table: null
+      table: null,
     });
   });
 
@@ -3338,7 +3297,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     );
 
     expect(data).toMatchObject({
-      view: null
+      view: null,
     });
   });
 
@@ -3355,12 +3314,12 @@ describe("GraphQL Server - Transactional Tests", () => {
           }
         }
       `,
-      { },
+      {},
       client
     );
 
     expect(data).toMatchObject({
-      schema: null
+      schema: null,
     });
   });
 
@@ -3377,12 +3336,12 @@ describe("GraphQL Server - Transactional Tests", () => {
           }
         }
       `,
-      { },
+      {},
       client
     );
 
     expect(data).toMatchObject({
-      materializedView: null
+      materializedView: null,
     });
   });
 
@@ -3399,12 +3358,12 @@ describe("GraphQL Server - Transactional Tests", () => {
           }
         }
       `,
-      { },
+      {},
       client
     );
 
     expect(data).toMatchObject({
-      policy: null
+      policy: null,
     });
   });
 
@@ -3421,12 +3380,12 @@ describe("GraphQL Server - Transactional Tests", () => {
           }
         }
       `,
-      { },
+      {},
       client
     );
 
     expect(data).toMatchObject({
-      index: null
+      index: null,
     });
   });
 
@@ -3443,12 +3402,12 @@ describe("GraphQL Server - Transactional Tests", () => {
           }
         }
       `,
-      { },
+      {},
       client
     );
 
     expect(data).toMatchObject({
-      trigger: null
+      trigger: null,
     });
   });
 
@@ -3569,7 +3528,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     `);
     const typeOid = result.rows[0].oid;
     const typeId = buildGlobalId("PgType", typeOid);
-    
+
     console.log("Type query result:", result.rows[0]);
     console.log("Test type OID:", typeOid, "Type ID:", typeId);
 
@@ -3591,9 +3550,9 @@ describe("GraphQL Server - Transactional Tests", () => {
       { oid: typeOid },
       client
     );
-    
+
     console.log("Direct type query result:", directResult.data);
-    
+
     // Then try the node query
     const nodeResult = await executeTestQuery(
       testServer,
@@ -3612,7 +3571,7 @@ describe("GraphQL Server - Transactional Tests", () => {
       { id: typeId },
       client
     );
-    
+
     const { data, errors } = nodeResult;
     console.log("Node query errors:", errors);
     console.log("Node query data:", data);
@@ -3633,7 +3592,9 @@ describe("GraphQL Server - Transactional Tests", () => {
   // =====================================
   it("fetches a Column node by id", async () => {
     await client.query("create schema test_schema;");
-    await client.query("create table test_schema.test_table (some_unique_name serial primary key, name text);");
+    await client.query(
+      "create table test_schema.test_table (some_unique_name serial primary key, name text);"
+    );
     const result = await client.query(`
       select attrelid
       from pg_catalog.pg_attribute
@@ -3754,7 +3715,7 @@ describe("GraphQL Server - Transactional Tests", () => {
           }
         }
       `,
-      { },
+      {},
       client
     );
 
@@ -3777,7 +3738,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch Schema Privileges
   // =====================================
@@ -3786,7 +3746,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     await client.query("create schema test_schema;");
     await client.query("revoke usage on schema test_schema from test_role;");
     await client.query("revoke usage on schema test_schema from public;");
-
 
     const { data, errors } = await executeTestQuery(
       testServer,
@@ -4008,12 +3967,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific Table by Schema Name and Table Name (Non-existent)
   // =====================================
   it("returns null when querying a non-existent table by schema name and table name", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4035,12 +3992,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific View by Schema Name and Table Name (Non-existent)
   // =====================================
   it("returns null when querying a non-existent view by schema name and view name", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4062,12 +4017,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific Materialized View by Schema Name and Matview Name (Non-existent)
   // =====================================
   it("returns null when querying a non-existent materialized view by schema name and mat view name", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4089,12 +4042,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific Index by Schema Name and Index Name (Non-existent)
   // =====================================
   it("returns null when querying a non-existent index by schema name and index name", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4116,12 +4067,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific Policy by Schema Name and Policy Name (Non-existent)
   // =====================================
   it("returns null when querying a non-existent policy by schema name and policy", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4143,12 +4092,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific Trigger by Schema Name and Trigger Name (Non-existent)
   // =====================================
   it("returns null when querying a non-existent trigger by schema name and name", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4170,12 +4117,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific Type by Schema Name and Name (Non-existent)
   // =====================================
   it("returns null when querying a non-existent type by schema name and name", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4197,12 +4142,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific Type no args (No match)
   // =====================================
   it("returns null when querying a type without filtering", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4224,12 +4167,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(errors).toBeUndefined();
   });
 
-
   // =====================================
   // TEST: Fetch a Specific role no args (No match)
   // =====================================
   it("returns null when querying a role without filtering", async () => {
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4248,7 +4189,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     });
     expect(errors).toBeUndefined();
   });
-
 
   // =====================================
   // TEST: Fetch a Node with nonsense entity type returns null
@@ -4387,11 +4327,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       database: {
         schemas: {
-          nodes: [
-            { name: "schema_c" },
-            { name: "schema_b" },
-            { name: "schema_a" },
-          ],
+          nodes: [{ name: "schema_c" }, { name: "schema_b" }, { name: "schema_a" }],
         },
       },
     });
@@ -4427,11 +4363,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toMatchObject({
       schema: {
         tables: {
-          nodes: [
-            { name: "table_a" },
-            { name: "table_b" },
-            { name: "table_c" },
-          ],
+          nodes: [{ name: "table_a" }, { name: "table_b" }, { name: "table_c" }],
         },
       },
     });
@@ -4500,7 +4432,11 @@ describe("GraphQL Server - Transactional Tests", () => {
       },
     });
 
-    const endCursor = (firstPageData as { schema: { tables: { pageInfo: { endCursor: string } } } }).schema.tables.pageInfo.endCursor;
+    const endCursor = (
+      firstPageData as {
+        schema: { tables: { pageInfo: { endCursor: string } } };
+      }
+    ).schema.tables.pageInfo.endCursor;
 
     const { data: secondPageData, errors: secondPageErrors } = await executeTestQuery(
       testServer,
@@ -4556,50 +4492,63 @@ describe("GraphQL Server - Transactional Tests", () => {
     await client.query("create schema test_schema;");
     await client.query("create table test_schema.test_table (id serial primary key);");
     await client.query("create role test_role;");
-    await client.query(`create policy test_policy_select on test_schema.test_table for select to test_role using (true);`);
-    await client.query(`create policy test_policy_insert on test_schema.test_table for insert to test_role with check (true);`);
-    await client.query(`create policy test_policy_update on test_schema.test_table for update to test_role using (true);`);
-    await client.query(`create policy test_policy_delete on test_schema.test_table for delete to test_role using (true);`);
-    await client.query(`create policy test_policy_all on test_schema.test_table for all to test_role using (true) with check (true);`);
+    await client.query(
+      `create policy test_policy_select on test_schema.test_table for select to test_role using (true);`
+    );
+    await client.query(
+      `create policy test_policy_insert on test_schema.test_table for insert to test_role with check (true);`
+    );
+    await client.query(
+      `create policy test_policy_update on test_schema.test_table for update to test_role using (true);`
+    );
+    await client.query(
+      `create policy test_policy_delete on test_schema.test_table for delete to test_role using (true);`
+    );
+    await client.query(
+      `create policy test_policy_all on test_schema.test_table for all to test_role using (true) with check (true);`
+    );
 
     // Test each policy and its corresponding command
     const policies = [
-      { name: 'test_policy_select', expectedCommand: 'SELECT' },
-      { name: 'test_policy_insert', expectedCommand: 'INSERT' },
-      { name: 'test_policy_update', expectedCommand: 'UPDATE' },
-      { name: 'test_policy_delete', expectedCommand: 'DELETE' },
-      { name: 'test_policy_all', expectedCommand: 'ALL' }
+      { name: "test_policy_select", expectedCommand: "SELECT" },
+      { name: "test_policy_insert", expectedCommand: "INSERT" },
+      { name: "test_policy_update", expectedCommand: "UPDATE" },
+      { name: "test_policy_delete", expectedCommand: "DELETE" },
+      { name: "test_policy_all", expectedCommand: "ALL" },
     ];
 
     for (const policy of policies) {
-      const result = await client.query(`
+      const result = await client.query(
+        `
       select oid
       from pg_catalog.pg_policy
       where polname = $1
-      `, [policy.name]);
+      `,
+        [policy.name]
+      );
       const policyOid = result.rows[0].oid;
 
       const { data, errors } = await executeTestQuery(
-      testServer,
-      `
+        testServer,
+        `
         query ($oid: Int!) {
           policy(oid: $oid) {
             command
           }
         }
       `,
-      { oid: policyOid },
-      client
+        { oid: policyOid },
+        client
       );
 
       expect(data).toMatchObject({
-      policy: expect.objectContaining({
-        command: policy.expectedCommand,
-      }),
+        policy: expect.objectContaining({
+          command: policy.expectedCommand,
+        }),
       });
       expect(errors).toBeUndefined();
     }
-    });
+  });
 
   // =====================================
   // TEST: Foreign Keys
@@ -4652,11 +4601,13 @@ describe("GraphQL Server - Transactional Tests", () => {
       name: expect.any(String),
       updateAction: "NO_ACTION",
       deleteAction: "CASCADE",
-      columnMappings: [{
-        referencingColumn: { name: "parent_id" },
-        referencedColumn: { name: "id" }
-      }],
-      referencedTable: { name: "parent" }
+      columnMappings: [
+        {
+          referencingColumn: { name: "parent_id" },
+          referencedColumn: { name: "id" },
+        },
+      ],
+      referencedTable: { name: "parent" },
     });
     expect(errors).toBeUndefined();
   });
@@ -4697,9 +4648,8 @@ describe("GraphQL Server - Transactional Tests", () => {
 
     expect((data as any)?.table?.referencedBy?.nodes[0]).toMatchObject({
       name: expect.any(String),
-      table: { name: "child" }
+      table: { name: "child" },
     });
     expect(errors).toBeUndefined();
   });
-
 });

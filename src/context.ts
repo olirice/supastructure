@@ -1,4 +1,4 @@
-import {
+import type {
   PgDatabase,
   PgNamespace,
   PgClass,
@@ -9,6 +9,8 @@ import {
   PgEnum,
   PgIndex,
   PgRole,
+  PgForeignKey} from "./types.js";
+import {
   PgAttributeSchema,
   PgDatabaseSchema,
   PgClassSchema,
@@ -19,7 +21,6 @@ import {
   PgIndexSchema,
   PgRoleSchema,
   PgTypeSchema,
-  PgForeignKey,
   PgForeignKeySchema,
 } from "./types.js";
 import pg from "pg";
@@ -33,17 +34,17 @@ import { createPolicyLoaders, policyQueries } from "./loaders/pg_policies.js";
 /**
  * Helper functions for parsing database rows into typed objects
  */
-function parseTypeRow(row: any): PgType & { typnamespace?: number, nspname?: string } {
+function parseTypeRow(row: any): PgType & { typnamespace?: number; nspname?: string } {
   // Apply zod schema validation for the base fields
   const baseType = PgTypeSchema.parse(row);
-  
+
   // Add additional fields that may be needed by resolvers
   return {
     ...baseType,
     typbasetype: row.typbasetype,
     typelem: row.typelem,
     typnamespace: row.typnamespace,
-    nspname: row.nspname
+    nspname: row.nspname,
   };
 }
 
@@ -122,14 +123,17 @@ export const queries = {
   },
 
   async triggerByOid(client: pg.Client | pg.PoolClient, oid: number): Promise<PgTrigger | null> {
-    const result = await client.query(`
+    const result = await client.query(
+      `
       select
         t.oid,
         t.tgname,
         t.tgrelid
       from pg_catalog.pg_trigger t
       where t.oid = $1
-    `, [oid]);
+    `,
+      [oid]
+    );
     return result.rows.length ? PgTriggerSchema.parse(result.rows[0]) : null;
   },
 
@@ -138,7 +142,8 @@ export const queries = {
     schemaName: string,
     triggerName: string
   ): Promise<PgTrigger | null> {
-    const result = await client.query(`
+    const result = await client.query(
+      `
       select
         t.oid,
         t.tgname,
@@ -149,7 +154,9 @@ export const queries = {
       where not t.tgisinternal
         and n.nspname = $1
         and t.tgname = $2
-    `, [schemaName, triggerName]);
+    `,
+      [schemaName, triggerName]
+    );
     return result.rows.length ? PgTriggerSchema.parse(result.rows[0]) : null;
   },
 
@@ -201,7 +208,8 @@ export const queries = {
   },
 
   async typeByOid(client: pg.Client | pg.PoolClient, oid: number): Promise<PgType | null> {
-    const result = await client.query(`
+    const result = await client.query(
+      `
       select
         t.oid,
         t.typname,
@@ -213,7 +221,9 @@ export const queries = {
       from pg_catalog.pg_type t
       join pg_catalog.pg_namespace n on t.typnamespace = n.oid
       where t.oid = $1
-    `, [oid]);
+    `,
+      [oid]
+    );
     return result.rows.length ? PgTypeSchema.parse(result.rows[0]) : null;
   },
 
@@ -222,7 +232,8 @@ export const queries = {
     schemaName: string,
     typeName: string
   ): Promise<PgType | null> {
-    const result = await client.query(`
+    const result = await client.query(
+      `
       select
         t.oid,
         t.typname,
@@ -234,7 +245,9 @@ export const queries = {
       from pg_catalog.pg_type t
       join pg_catalog.pg_namespace n on t.typnamespace = n.oid
       where n.nspname = $1 and t.typname = $2
-    `, [schemaName, typeName]);
+    `,
+      [schemaName, typeName]
+    );
     return result.rows.length ? PgTypeSchema.parse(result.rows[0]) : null;
   },
 
@@ -283,20 +296,26 @@ export const queries = {
   },
 
   async roleByOid(client: pg.Client | pg.PoolClient, oid: number): Promise<PgRole | null> {
-    const result = await client.query(`
+    const result = await client.query(
+      `
       select oid, rolname, rolsuper
       from pg_catalog.pg_roles
       where oid = $1
-    `, [oid]);
+    `,
+      [oid]
+    );
     return result.rows.length ? PgRoleSchema.parse(result.rows[0]) : null;
   },
 
   async roleByName(client: pg.Client | pg.PoolClient, name: string): Promise<PgRole | null> {
-    const result = await client.query(`
+    const result = await client.query(
+      `
       select oid, rolname, rolsuper
       from pg_catalog.pg_roles
       where rolname = $1
-    `, [name]);
+    `,
+      [name]
+    );
     return result.rows.length ? PgRoleSchema.parse(result.rows[0]) : null;
   },
 
@@ -335,8 +354,8 @@ export const queries = {
 export interface ReqContext {
   /** PostgreSQL client for direct database access */
   client: pg.Client | pg.PoolClient;
-  
-  /** 
+
+  /**
    * Resolver functions that efficiently load and cache data
    * These use the dataSources cache to avoid redundant queries
    */
@@ -351,7 +370,7 @@ export interface ReqContext {
   resolveIndexes: (filter?: (index: PgIndex) => boolean) => Promise<PgIndex[]>;
   resolveRoles: (filter?: (role: PgRole) => boolean) => Promise<PgRole[]>;
   resolveForeignKeys: (filter?: (fk: PgForeignKey) => boolean) => Promise<PgForeignKey[]>;
-  
+
   /**
    * DataLoaders for efficient batched SQL queries
    * These reduce the N+1 query problem by batching multiple individual
@@ -359,14 +378,8 @@ export interface ReqContext {
    */
   typeLoader: DataLoader<number, PgType | null>;
   classLoader: DataLoader<number, PgClass | null>;
-  classByNameLoader: DataLoader<
-    { schema: string; name: string },
-    PgClass | null
-  >;
-  classesByNamespaceLoader: DataLoader<
-    { namespaceOid: number; relkind?: string },
-    PgClass[]
-  >;
+  classByNameLoader: DataLoader<{ schema: string; name: string }, PgClass | null>;
+  classesByNamespaceLoader: DataLoader<{ namespaceOid: number; relkind?: string }, PgClass[]>;
   attributesByRelationLoader: DataLoader<number, PgAttribute[] | null>;
   attributesByTableNameLoader: DataLoader<
     { schemaName: string; tableName: string },
@@ -377,8 +390,8 @@ export interface ReqContext {
   triggersByRelationLoader: DataLoader<number, PgTrigger[]>;
   policyLoader: DataLoader<number, PgPolicy | null>;
   policiesByRelationLoader: DataLoader<number, PgPolicy[]>;
-  
-  /** 
+
+  /**
    * Cached data sources to avoid redundant queries
    * These are populated on-demand by resolver functions
    */
@@ -423,9 +436,7 @@ export interface DbConfig {
  * Properly release a database client based on its type
  * @param client - The PostgreSQL client to release
  */
-export async function releaseClient(
-  client: pg.Client | pg.PoolClient
-): Promise<void> {
+export async function releaseClient(client: pg.Client | pg.PoolClient): Promise<void> {
   if ("end" in client) {
     // If it's a pg.Client instance, close the connection
     await client.end();
@@ -449,89 +460,91 @@ export async function context(
   if (!existingClient) {
     await client.connect();
   }
-  
+
   try {
     // Create data sources object to cache results
-    const dataSources: ReqContext['dataSources'] = {};
-    
+    const dataSources: ReqContext["dataSources"] = {};
+
     // Create resolver functions that use efficient data loading with caching
     const resolveDatabase = async () => {
       if (dataSources.database) return dataSources.database;
       dataSources.database = await queries.database(client);
       return dataSources.database;
     };
-    
+
     // Create namespace loaders
     const namespaceLoaders = createNamespaceLoaders(client);
-    
+
     // Create class loaders
     const classLoaders = createClassLoaders(client);
-    
+
     // Create attribute loaders
     const attributeLoaders = createAttributeLoaders(client);
-    
+
     // Create trigger loaders
-    const { triggerLoader, triggersByRelationLoader, getAllTriggers } = createTriggerLoaders(client);
-    
+    const { triggerLoader, triggersByRelationLoader, getAllTriggers } =
+      createTriggerLoaders(client);
+
     // Create policy loaders
     const { policyLoader, policiesByRelationLoader, getAllPolicies } = createPolicyLoaders(client);
-    
+
     // Use namespace loaders to implement resolveNamespaces
     const resolveNamespaces = namespaceLoaders.getAllNamespaces;
-    
+
     // Use class loaders to implement resolveClasses
     const resolveClasses = classLoaders.getAllClasses;
-    
+
     const resolveAttributes = attributeLoaders.getAllAttributes;
-    
+
     const resolveTriggers = async (filter?: (trigger: PgTrigger) => boolean) => {
       return getAllTriggers(filter);
     };
-    
+
     const resolvePolicies = async (filter?: (policy: PgPolicy) => boolean) => {
       return getAllPolicies(filter);
     };
-    
+
     const resolveTypes = async (filter?: (type: PgType) => boolean) => {
       if (!dataSources.types) {
         dataSources.types = await queries.types(client);
       }
       return filter ? dataSources.types.filter(filter) : dataSources.types;
     };
-    
+
     const resolveEnums = async (filter?: (enum_: PgEnum) => boolean) => {
       if (!dataSources.enums) {
         dataSources.enums = await queries.enums(client);
       }
       return filter ? dataSources.enums.filter(filter) : dataSources.enums;
     };
-    
+
     const resolveIndexes = async (filter?: (index: PgIndex) => boolean) => {
       if (!dataSources.indexes) {
         dataSources.indexes = await queries.index(client);
       }
       return filter ? dataSources.indexes.filter(filter) : dataSources.indexes;
     };
-    
+
     const resolveRoles = async (filter?: (role: PgRole) => boolean) => {
       if (!dataSources.roles) {
         dataSources.roles = await queries.roles(client);
       }
       return filter ? dataSources.roles.filter(filter) : dataSources.roles;
     };
-    
+
     const resolveForeignKeys = async (filter?: (fk: PgForeignKey) => boolean) => {
       if (!dataSources.foreignKeys) {
         dataSources.foreignKeys = await queries.foreignKeys(client);
       }
       return filter ? dataSources.foreignKeys.filter(filter) : dataSources.foreignKeys;
     };
-    
+
     // Create DataLoader for types
     const typeLoader = new DataLoader<number, PgType | null>(async (typeOids) => {
       const uniqueOids = [...new Set(typeOids)];
-      
-      const result = await client.query(`
+
+      const result = await client.query(
+        `
         SELECT 
           t.oid, 
           t.typname, 
@@ -544,22 +557,25 @@ export async function context(
         FROM pg_catalog.pg_type t
         JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
         WHERE t.oid = ANY($1)
-      `, [uniqueOids]);
-      
+      `,
+        [uniqueOids]
+      );
+
       const typeMap = new Map<number, PgType>();
-      result.rows.forEach(row => {
+      result.rows.forEach((row) => {
         const type = parseTypeRow(row);
         typeMap.set(type.oid, type);
       });
-      
-      return typeOids.map(oid => typeMap.get(oid) || null);
+
+      return typeOids.map((oid) => typeMap.get(oid) || null);
     });
-    
+
     // Create DataLoader for classes (tables, views, etc.)
     const classLoader = new DataLoader<number, PgClass | null>(async (classOids) => {
       const uniqueOids = [...new Set(classOids)];
-      
-      const result = await client.query(`
+
+      const result = await client.query(
+        `
         SELECT
           c.oid,
           c.relname,
@@ -571,22 +587,25 @@ export async function context(
         FROM pg_catalog.pg_class c
         JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
         WHERE c.oid = ANY($1)
-      `, [uniqueOids]);
-      
+      `,
+        [uniqueOids]
+      );
+
       const classMap = new Map<number, PgClass>();
-      result.rows.forEach(row => {
+      result.rows.forEach((row) => {
         const cls = PgClassSchema.parse(row);
         classMap.set(cls.oid, cls);
       });
-      
-      return classOids.map(oid => classMap.get(oid) || null);
+
+      return classOids.map((oid) => classMap.get(oid) || null);
     });
 
     // Create DataLoader for attributes (columns) by relation OID
     const attributeLoader = new DataLoader<number, PgAttribute[] | null>(async (relationOids) => {
       const uniqueOids = [...new Set(relationOids)];
-      
-      const result = await client.query(`
+
+      const result = await client.query(
+        `
         SELECT
           a.attrelid,
           a.attname,
@@ -609,21 +628,23 @@ export async function context(
         AND a.attnum > 0
         AND NOT a.attisdropped
         ORDER BY a.attnum
-      `, [uniqueOids]);
-      
+      `,
+        [uniqueOids]
+      );
+
       // Group attributes by relation OID
       const attrMap = new Map<number, PgAttribute[]>();
-      result.rows.forEach(row => {
+      result.rows.forEach((row) => {
         const attr = PgAttributeSchema.parse(row);
         if (!attrMap.has(attr.attrelid)) {
           attrMap.set(attr.attrelid, []);
         }
         attrMap.get(attr.attrelid)!.push(attr);
       });
-      
-      return relationOids.map(oid => attrMap.get(oid) || null);
+
+      return relationOids.map((oid) => attrMap.get(oid) || null);
     });
-    
+
     return {
       client,
       dataSources,
@@ -649,7 +670,7 @@ export async function context(
       policyLoader,
       policiesByRelationLoader,
       namespaceLoader: namespaceLoaders.namespaceLoader,
-      namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader
+      namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader,
     };
   } catch (err) {
     console.error("error loading data:", err);

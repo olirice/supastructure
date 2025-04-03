@@ -14,9 +14,7 @@ export function sortItems<T>(
     if (typeof fa === "string" && typeof fb === "string") {
       return direction === "DESC" ? fb.localeCompare(fa) : fa.localeCompare(fb);
     }
-    return direction === "DESC"
-      ? (fb as number) - (fa as number)
-      : (fa as number) - (fb as number);
+    return direction === "DESC" ? (fb as number) - (fa as number) : (fa as number) - (fb as number);
   });
 }
 
@@ -82,14 +80,9 @@ export function buildGlobalId(typeName: string, oid: number): string {
   return Buffer.from(`${typeName}:${oid}`).toString("base64");
 }
 
-export function singleResultOrError<T>(
-  items: T[],
-  entityName: string
-): T | null {
+export function singleResultOrError<T>(items: T[], entityName: string): T | null {
   if (items.length > 1) {
-    throw new Error(
-      `Multiple ${entityName} results found. Provide more specific filters.`
-    );
+    throw new Error(`Multiple ${entityName} results found. Provide more specific filters.`);
   }
   return items.length === 1 ? items[0] : null;
 }

@@ -1,4 +1,4 @@
-import {
+import type {
   PgDatabase,
   PgNamespace,
   PgClass,
@@ -6,13 +6,15 @@ import {
   PgTrigger,
   PgPolicy,
   PgType,
+  PgRole,
+  PgForeignKey} from "./types.js";
+import {
   PgEnum,
   PgIndex,
-  PgRole,
-  PgForeignKey,
   PgForeignKeySchema,
 } from "./types.js";
-import { ReqContext, queries } from "./context.js";
+import type { ReqContext} from "./context.js";
+import { queries } from "./context.js";
 import {
   decodeId,
   singleResultOrError,
@@ -22,7 +24,7 @@ import {
   limitPageSize,
 } from "./generic.js";
 import util from "util";
-import { z } from 'zod';
+import { z } from "zod";
 import { PgTypeSchema } from "./types.js";
 
 // Define PaginationArgs interface
@@ -33,11 +35,7 @@ interface PaginationArgs {
 
 export const resolvers = {
   Query: {
-    database: async (
-      _p: unknown,
-      _a: unknown,
-      ctx: ReqContext
-    ): Promise<PgDatabase | null> => {
+    database: async (_p: unknown, _a: unknown, ctx: ReqContext): Promise<PgDatabase | null> => {
       return await ctx.resolveDatabase();
     },
 
@@ -68,23 +66,21 @@ export const resolvers = {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Table") {
         const result = await ctx.classLoader.load(fromId.oid);
-        return result?.relkind === 'r' ? result : null;
+        return result?.relkind === "r" ? result : null;
       }
       if (args.oid) {
         const result = await ctx.classLoader.load(args.oid);
-        return result?.relkind === 'r' ? result : null;
+        return result?.relkind === "r" ? result : null;
       }
       if (args.schemaName && args.name) {
         // First get the namespace by name
         const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!namespace) return null;
-        
+
         // Then find the class by name and namespace
         const classes = await ctx.resolveClasses();
-        const match = classes.find(c => 
-          c.relnamespace === namespace.oid && 
-          c.relname === args.name && 
-          c.relkind === 'r'
+        const match = classes.find(
+          (c) => c.relnamespace === namespace.oid && c.relname === args.name && c.relkind === "r"
         );
         return match || null;
       }
@@ -99,23 +95,21 @@ export const resolvers = {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "View") {
         const result = await ctx.classLoader.load(fromId.oid);
-        return result?.relkind === 'v' ? result : null;
+        return result?.relkind === "v" ? result : null;
       }
       if (args.oid) {
         const result = await ctx.classLoader.load(args.oid);
-        return result?.relkind === 'v' ? result : null;
+        return result?.relkind === "v" ? result : null;
       }
       if (args.schemaName && args.name) {
         // First get the namespace by name
         const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!namespace) return null;
-        
+
         // Then find the class by name and namespace
         const classes = await ctx.resolveClasses();
-        const match = classes.find(c => 
-          c.relnamespace === namespace.oid && 
-          c.relname === args.name && 
-          c.relkind === 'v'
+        const match = classes.find(
+          (c) => c.relnamespace === namespace.oid && c.relname === args.name && c.relkind === "v"
         );
         return match || null;
       }
@@ -130,23 +124,21 @@ export const resolvers = {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "MaterializedView") {
         const result = await ctx.classLoader.load(fromId.oid);
-        return result?.relkind === 'm' ? result : null;
+        return result?.relkind === "m" ? result : null;
       }
       if (args.oid) {
         const result = await ctx.classLoader.load(args.oid);
-        return result?.relkind === 'm' ? result : null;
+        return result?.relkind === "m" ? result : null;
       }
       if (args.schemaName && args.name) {
         // First get the namespace by name
         const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!namespace) return null;
-        
+
         // Then find the class by name and namespace
         const classes = await ctx.resolveClasses();
-        const match = classes.find(c => 
-          c.relnamespace === namespace.oid && 
-          c.relname === args.name && 
-          c.relkind === 'm'
+        const match = classes.find(
+          (c) => c.relnamespace === namespace.oid && c.relname === args.name && c.relkind === "m"
         );
         return match || null;
       }
@@ -161,23 +153,21 @@ export const resolvers = {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Index") {
         const result = await ctx.classLoader.load(fromId.oid);
-        return result?.relkind === 'i' ? result : null;
+        return result?.relkind === "i" ? result : null;
       }
       if (args.oid) {
         const result = await ctx.classLoader.load(args.oid);
-        return result?.relkind === 'i' ? result : null;
+        return result?.relkind === "i" ? result : null;
       }
       if (args.schemaName && args.name) {
         // First get the namespace by name
         const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!namespace) return null;
-        
+
         // Then find the class by name and namespace
         const classes = await ctx.resolveClasses();
-        const match = classes.find(c => 
-          c.relnamespace === namespace.oid && 
-          c.relname === args.name && 
-          c.relkind === 'i'
+        const match = classes.find(
+          (c) => c.relnamespace === namespace.oid && c.relname === args.name && c.relkind === "i"
         );
         return match || null;
       }
@@ -186,37 +176,35 @@ export const resolvers = {
 
     trigger: async (
       _p: unknown,
-      args: { id?: string; oid?: number, schemaName?: string; name?: string },
+      args: { id?: string; oid?: number; schemaName?: string; name?: string },
       ctx: ReqContext
     ): Promise<PgTrigger | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Trigger") {
         // Search for trigger by oid
-        const triggers = await ctx.resolveTriggers(t => t.oid === fromId.oid);
+        const triggers = await ctx.resolveTriggers((t) => t.oid === fromId.oid);
         return triggers.length > 0 ? triggers[0] : null;
       }
       if (args.oid) {
         // Search for trigger by oid
-        const triggers = await ctx.resolveTriggers(t => t.oid === args.oid);
+        const triggers = await ctx.resolveTriggers((t) => t.oid === args.oid);
         return triggers.length > 0 ? triggers[0] : null;
       }
       if (args.schemaName && args.name) {
         // First get the namespace by name
         const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!namespace) return null;
-        
+
         // Then find all triggers by name in this schema
         const triggers = await ctx.resolveTriggers();
         const classes = await ctx.resolveClasses();
-        
+
         // Find the trigger that belongs to a table in the specified schema
-        const match = triggers.find(t => {
-          const cls = classes.find(c => c.oid === t.tgrelid);
-          return cls && 
-                 cls.relnamespace === namespace.oid && 
-                 t.tgname === args.name;
+        const match = triggers.find((t) => {
+          const cls = classes.find((c) => c.oid === t.tgrelid);
+          return cls && cls.relnamespace === namespace.oid && t.tgname === args.name;
         });
-        
+
         return match || null;
       }
       return null;
@@ -233,17 +221,17 @@ export const resolvers = {
       if (args.schemaName && args.name) {
         const ns = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!ns) return null;
-        
+
         // For looking up by name, we still need to use the resolvePolicies method
         // since we don't have a dedicated loader for name lookups
         const classes = await ctx.resolveClasses();
         const policies = await ctx.resolvePolicies();
-        
-        const matched = policies.filter(po => {
-          const c = classes.find(cl => cl.oid === po.polrelid);
+
+        const matched = policies.filter((po) => {
+          const c = classes.find((cl) => cl.oid === po.polrelid);
           return c && c.relnamespace === ns.oid && po.polname === args.name;
         });
-        
+
         return singleResultOrError(matched, "Policy");
       }
       return null;
@@ -263,7 +251,8 @@ export const resolvers = {
       }
       if (args.schemaName && args.name) {
         // Execute a query to find a type by name and schema
-        const result = await ctx.client.query(`
+        const result = await ctx.client.query(
+          `
           SELECT 
             t.oid, 
             t.typname, 
@@ -276,8 +265,10 @@ export const resolvers = {
           FROM pg_catalog.pg_type t
           JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
           WHERE n.nspname = $1 AND t.typname = $2
-        `, [args.schemaName, args.name]);
-        
+        `,
+          [args.schemaName, args.name]
+        );
+
         return result.rows.length ? parseDbType(result.rows[0]) : null;
       }
       return null;
@@ -304,7 +295,7 @@ export const resolvers = {
     node: async (_p: unknown, args: { id: string }, ctx: ReqContext): Promise<any> => {
       const info = decodeId(args.id);
       console.log("Node query for:", info);
-      
+
       switch (info.typeName) {
         case "Database": {
           const database = await ctx.resolveDatabase();
@@ -342,10 +333,11 @@ export const resolvers = {
         }
         case "PgType": {
           console.log("Loading PgType node with oid:", info.oid);
-          
+
           // Instead of using the DataLoader here, do a direct query to ensure we get full type info
           // The failure seems to be with the GraphQL Node interface resolution
-          const result = await ctx.client.query(`
+          const result = await ctx.client.query(
+            `
             SELECT 
               t.oid, 
               t.typname, 
@@ -358,39 +350,41 @@ export const resolvers = {
             FROM pg_catalog.pg_type t
             JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
             WHERE t.oid = $1
-          `, [info.oid]);
-          
+          `,
+            [info.oid]
+          );
+
           if (result.rows.length === 0) {
             console.log("No PgType found with oid:", info.oid);
             return null;
           }
-          
+
           // Parse the type
           const type = parseDbType(result.rows[0]);
           console.log("Loaded PgType:", type);
-          
+
           // Build the appropriate object based on the type kind
           const kind = resolvePgType(type);
           console.log("Resolved kind:", kind);
-          
+
           // Return the type object directly - we already have all fields needed
           // This will be assigned the right __typename through the Node type resolver
           return {
             ...type,
             __typename: kind,
             id: buildGlobalId("PgType", type.oid),
-            kind: kind.replace('Type', '').toUpperCase()
+            kind: kind.replace("Type", "").toUpperCase(),
           };
         }
         case "Column": {
           // For columns, we need to get all attributes for a relation
           // and then find the specific one we're looking for
           // This is a bit different since we don't have a direct loader by column OID
-          const attributes = await ctx.resolveAttributes(a => a.attrelid === info.oid);
+          const attributes = await ctx.resolveAttributes((a) => a.attrelid === info.oid);
           return attributes.length > 0 ? attributes[0] : null;
         }
         case "Role": {
-          const roles = await ctx.resolveRoles(r => r.oid === info.oid);
+          const roles = await ctx.resolveRoles((r) => r.oid === info.oid);
           return roles.length > 0 ? roles[0] : null;
         }
         default:
@@ -403,8 +397,7 @@ export const resolvers = {
   // Connection resolvers (rename top-level arrays to "nodes")
   ////////////////////////////////////////
   SchemaConnection: {
-    edges: (p: { edges: Array<{ node: PgNamespace }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgNamespace }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgNamespace }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
@@ -413,18 +406,15 @@ export const resolvers = {
   },
 
   TableConnection: {
-    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
-    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      p.edges.map((e) => e.node),
+    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) => p.edges.map((e) => e.node),
   },
 
   ColumnConnection: {
-    edges: (p: { edges: Array<{ node: PgAttribute }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgAttribute }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgAttribute }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
@@ -433,33 +423,27 @@ export const resolvers = {
   },
 
   ViewConnection: {
-    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
-    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      p.edges.map((e) => e.node),
+    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) => p.edges.map((e) => e.node),
   },
 
   MaterializedViewConnection: {
-    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
-    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      p.edges.map((e) => e.node),
+    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) => p.edges.map((e) => e.node),
   },
 
   IndexConnection: {
-    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgClass }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
-    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) =>
-      p.edges.map((e) => e.node),
+    nodes: (p: { edges: Array<{ node: PgClass }>; first: number }) => p.edges.map((e) => e.node),
   },
 
   TriggerConnection: {
@@ -467,20 +451,16 @@ export const resolvers = {
     pageInfo: (p: { edges: Array<{ node: PgTrigger }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
-    nodes: (p: { edges: Array<{ node: PgTrigger }>; first: number }) =>
-      p.edges.map((e) => e.node),
+    nodes: (p: { edges: Array<{ node: PgTrigger }>; first: number }) => p.edges.map((e) => e.node),
   },
 
   PolicyConnection: {
-    edges: (p: { edges: Array<{ node: PgPolicy }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgPolicy }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgPolicy }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
-    nodes: (p: { edges: Array<{ node: PgPolicy }>; first: number }) =>
-      p.edges.map((e) => e.node),
+    nodes: (p: { edges: Array<{ node: PgPolicy }>; first: number }) => p.edges.map((e) => e.node),
   },
-
 
   ////////////////////////////////////////
   // Field resolvers: Database, Schema, Table, etc.
@@ -505,12 +485,19 @@ export const resolvers = {
         cursorForNode: (n) => String(n.oid),
       });
     },
-    privileges: async (p: PgDatabase, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
-      const result = await ctx.client.query(`
+    privileges: async (
+      p: PgDatabase,
+      args: { roleName: string },
+      ctx: ReqContext
+    ): Promise<any> => {
+      const result = await ctx.client.query(
+        `
         select pg_catalog.has_database_privilege($1, $2, 'connect') AS connect
-      `, [args.roleName, p.datname]);
+      `,
+        [args.roleName, p.datname]
+      );
 
-      const roles = await ctx.resolveRoles(r => r.rolname === args.roleName);
+      const roles = await ctx.resolveRoles((r) => r.rolname === args.roleName);
       return {
         role: roles.length > 0 ? roles[0] : null,
         connect: result.rows[0].connect,
@@ -525,8 +512,11 @@ export const resolvers = {
 
     tables: async (p: PgNamespace, args: any, ctx: ReqContext): Promise<any> => {
       // Use the classesByNamespaceLoader to efficiently load tables
-      let items = await ctx.classesByNamespaceLoader.load({ namespaceOid: p.oid, relkind: "r" });
-      
+      let items = await ctx.classesByNamespaceLoader.load({
+        namespaceOid: p.oid,
+        relkind: "r",
+      });
+
       // Apply sorting if needed
       if (args.orderBy?.field) {
         if (args.orderBy.field === "NAME") {
@@ -535,7 +525,7 @@ export const resolvers = {
           sortItems(items, (x) => x.oid, args.orderBy.direction);
         }
       }
-      
+
       // Apply pagination
       return paginate(items, {
         first: args.first,
@@ -545,8 +535,11 @@ export const resolvers = {
     },
     views: async (p: PgNamespace, args: any, ctx: ReqContext): Promise<any> => {
       // Use the classesByNamespaceLoader to efficiently load views
-      const items = await ctx.classesByNamespaceLoader.load({ namespaceOid: p.oid, relkind: "v" });
-      
+      const items = await ctx.classesByNamespaceLoader.load({
+        namespaceOid: p.oid,
+        relkind: "v",
+      });
+
       // Apply pagination
       return paginate(items, {
         first: args.first,
@@ -556,8 +549,11 @@ export const resolvers = {
     },
     materializedViews: async (p: PgNamespace, args: any, ctx: ReqContext): Promise<any> => {
       // Use the classesByNamespaceLoader to efficiently load materialized views
-      const items = await ctx.classesByNamespaceLoader.load({ namespaceOid: p.oid, relkind: "m" });
-      
+      const items = await ctx.classesByNamespaceLoader.load({
+        namespaceOid: p.oid,
+        relkind: "m",
+      });
+
       // Apply pagination
       return paginate(items, {
         first: args.first,
@@ -565,12 +561,19 @@ export const resolvers = {
         cursorForNode: (n) => String(n.oid),
       });
     },
-    privileges: async (p: PgNamespace, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
-      const result = await ctx.client.query(`
+    privileges: async (
+      p: PgNamespace,
+      args: { roleName: string },
+      ctx: ReqContext
+    ): Promise<any> => {
+      const result = await ctx.client.query(
+        `
         select pg_catalog.has_schema_privilege($1, $2, 'USAGE') AS usage
-      `, [args.roleName, p.nspname]);
+      `,
+        [args.roleName, p.nspname]
+      );
 
-      const roles = await ctx.resolveRoles(r => r.rolname === args.roleName);
+      const roles = await ctx.resolveRoles((r) => r.rolname === args.roleName);
       return {
         role: roles.length > 0 ? roles[0] : null,
         usage: result.rows[0].usage,
@@ -588,7 +591,7 @@ export const resolvers = {
       return ctx.namespaceLoader.load(p.relnamespace);
     },
     columns: async (p: PgClass, args: PaginationArgs, ctx: ReqContext): Promise<any> => {
-      const cols = await ctx.attributesByRelationLoader.load(p.oid) || [];
+      const cols = (await ctx.attributesByRelationLoader.load(p.oid)) || [];
       const paginationResult = paginate(cols, {
         first: args.first,
         after: args.after,
@@ -600,17 +603,16 @@ export const resolvers = {
       };
     },
     indexes: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
-      const indexes = await ctx.resolveIndexes(ix => ix.indrelid === p.oid);
-      
+      const indexes = await ctx.resolveIndexes((ix) => ix.indrelid === p.oid);
+
       // Use Promise.all with DataLoader to batch and cache class lookups by OID
       const indexClasses = await Promise.all(
-        indexes.map(ix => ctx.classLoader.load(ix.indexrelid))
+        indexes.map((ix) => ctx.classLoader.load(ix.indexrelid))
       );
-      
+
       // Filter out null values and non-index classes
-      const matched = indexClasses
-        .filter(c => c && c.relkind === "i");
-      
+      const matched = indexClasses.filter((c) => c && c.relkind === "i");
+
       return paginate(matched, {
         first: args.first,
         after: args.after,
@@ -636,14 +638,17 @@ export const resolvers = {
       });
     },
     privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
-      const result = await ctx.client.query(`
+      const result = await ctx.client.query(
+        `
         select pg_catalog.has_table_privilege($1, $2::oid, 'SELECT') AS select,
                pg_catalog.has_table_privilege($1, $2::oid, 'INSERT') AS insert,
                pg_catalog.has_table_privilege($1, $2::oid, 'UPDATE') AS update,
                pg_catalog.has_table_privilege($1, $2::oid, 'DELETE') AS delete
-      `, [args.roleName, p.oid]);
+      `,
+        [args.roleName, p.oid]
+      );
 
-      const roles = await ctx.resolveRoles(r => r.rolname === args.roleName);
+      const roles = await ctx.resolveRoles((r) => r.rolname === args.roleName);
       return {
         role: roles.length > 0 ? roles[0] : null,
         select: result.rows[0].select,
@@ -653,7 +658,7 @@ export const resolvers = {
       };
     },
     foreignKeys: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
-      const items = await ctx.resolveForeignKeys(fk => fk.conrelid === p.oid);
+      const items = await ctx.resolveForeignKeys((fk) => fk.conrelid === p.oid);
       return paginate(items, {
         first: args.first,
         after: args.after,
@@ -661,7 +666,7 @@ export const resolvers = {
       });
     },
     referencedBy: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
-      const items = await ctx.resolveForeignKeys(fk => fk.confrelid === p.oid);
+      const items = await ctx.resolveForeignKeys((fk) => fk.confrelid === p.oid);
       return paginate(items, {
         first: args.first,
         after: args.after,
@@ -683,14 +688,21 @@ export const resolvers = {
       // Use DataLoader to batch and cache type lookups by OID
       return ctx.typeLoader.load(p.atttypid);
     },
-    privileges: async (p: PgAttribute, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
-      const result = await ctx.client.query(`
+    privileges: async (
+      p: PgAttribute,
+      args: { roleName: string },
+      ctx: ReqContext
+    ): Promise<any> => {
+      const result = await ctx.client.query(
+        `
         select pg_catalog.has_column_privilege($1, $2::oid, $3, 'SELECT') AS select,
                pg_catalog.has_column_privilege($1, $2::oid, $3, 'INSERT') AS insert,
                pg_catalog.has_column_privilege($1, $2::oid, $3, 'UPDATE') AS update
-      `, [args.roleName, p.attrelid, p.attname]);
+      `,
+        [args.roleName, p.attrelid, p.attname]
+      );
 
-      const roles = await ctx.resolveRoles(r => r.rolname === args.roleName);
+      const roles = await ctx.resolveRoles((r) => r.rolname === args.roleName);
       return {
         role: roles.length > 0 ? roles[0] : null,
         select: result.rows[0].select,
@@ -709,7 +721,7 @@ export const resolvers = {
       return ctx.namespaceLoader.load(p.relnamespace);
     },
     columns: async (p: PgClass, args: PaginationArgs, ctx: ReqContext): Promise<any> => {
-      const cols = await ctx.attributesByRelationLoader.load(p.oid) || [];
+      const cols = (await ctx.attributesByRelationLoader.load(p.oid)) || [];
       const paginationResult = paginate(cols, {
         first: args.first,
         after: args.after,
@@ -721,11 +733,14 @@ export const resolvers = {
       };
     },
     privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
-      const result = await ctx.client.query(`
+      const result = await ctx.client.query(
+        `
         select pg_catalog.has_table_privilege($1, $2::oid, 'SELECT') AS select
-      `, [args.roleName, p.oid]);
+      `,
+        [args.roleName, p.oid]
+      );
 
-      const roles = await ctx.resolveRoles(r => r.rolname === args.roleName);
+      const roles = await ctx.resolveRoles((r) => r.rolname === args.roleName);
       return {
         role: roles.length > 0 ? roles[0] : null,
         select: result.rows[0].select,
@@ -741,10 +756,9 @@ export const resolvers = {
       // Use DataLoader to batch and cache namespace lookups by OID
       return ctx.namespaceLoader.load(p.relnamespace);
     },
-    isPopulated: (p: PgClass) =>
-      typeof p.relispopulated === "boolean" ? p.relispopulated : false,
+    isPopulated: (p: PgClass) => (typeof p.relispopulated === "boolean" ? p.relispopulated : false),
     columns: async (p: PgClass, args: PaginationArgs, ctx: ReqContext): Promise<any> => {
-      const cols = await ctx.attributesByRelationLoader.load(p.oid) || [];
+      const cols = (await ctx.attributesByRelationLoader.load(p.oid)) || [];
       const paginationResult = paginate(cols, {
         first: args.first,
         after: args.after,
@@ -756,11 +770,14 @@ export const resolvers = {
       };
     },
     privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
-      const result = await ctx.client.query(`
+      const result = await ctx.client.query(
+        `
         select pg_catalog.has_table_privilege($1, $2::oid, 'SELECT') AS select
-      `, [args.roleName, p.oid]);
+      `,
+        [args.roleName, p.oid]
+      );
 
-      const roles = await ctx.resolveRoles(r => r.rolname === args.roleName);
+      const roles = await ctx.resolveRoles((r) => r.rolname === args.roleName);
       return {
         role: roles.length > 0 ? roles[0] : null,
         select: result.rows[0].select,
@@ -777,19 +794,19 @@ export const resolvers = {
       return ctx.namespaceLoader.load(p.relnamespace);
     },
     table: async (p: PgClass, _a: any, ctx: ReqContext): Promise<any> => {
-      const indexes = await ctx.resolveIndexes(x => x.indexrelid === p.oid);
+      const indexes = await ctx.resolveIndexes((x) => x.indexrelid === p.oid);
       if (indexes.length === 0) return null;
-      
+
       const ix = indexes[0];
       // Use DataLoader to batch and cache class lookups by OID
       return ctx.classLoader.load(ix.indrelid);
     },
     accessMethod: async (p: PgClass, _a: any, ctx: ReqContext): Promise<any> => {
-      const indexes = await ctx.resolveIndexes(x => x.indexrelid === p.oid);
+      const indexes = await ctx.resolveIndexes((x) => x.indexrelid === p.oid);
       return indexes.length > 0 ? indexes[0].indexam : "unknown";
     },
     definition: async (p: PgClass, _a: any, ctx: ReqContext): Promise<any> => {
-      const indexes = await ctx.resolveIndexes(x => x.indexrelid === p.oid);
+      const indexes = await ctx.resolveIndexes((x) => x.indexrelid === p.oid);
       return indexes.length > 0 ? indexes[0].indexdef : null;
     },
   },
@@ -831,9 +848,9 @@ export const resolvers = {
     roles: (p: PgPolicy) => {
       // Handle the case where polroles might be a string (comma-separated values)
       const roles = p.polroles as string[] | string | undefined;
-      
-      if (typeof roles === 'string') {
-        return roles.split(',').filter((r: string) => r.trim() !== '');
+
+      if (typeof roles === "string") {
+        return roles.split(",").filter((r: string) => r.trim() !== "");
       }
       return roles || [];
     },
@@ -877,18 +894,18 @@ export const resolvers = {
       return null;
     },
   },
-  
+
   EnumType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
     name: (p: PgType) => p.typname,
     kind: () => "ENUM",
     enumVariants: async (p: PgType, _a: unknown, ctx: ReqContext): Promise<any> => {
-      const enums = await ctx.resolveEnums(e => e.enumtypid === p.oid);
+      const enums = await ctx.resolveEnums((e) => e.enumtypid === p.oid);
       return enums.length > 0 ? enums[0].enumlabels : [];
     },
   },
-  
+
   CompositeType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
@@ -899,21 +916,23 @@ export const resolvers = {
         console.warn(`Missing typrelid for composite type ${p.typname}`);
         return [];
       }
-      
+
       // Use DataLoader to batch and cache attribute lookups by relation OID
-      const attrs = await ctx.attributesByRelationLoader.load(p.typrelid) || [];
-      
-      return Promise.all(attrs.map(async (a) => {
-        const type = await ctx.typeLoader.load(a.atttypid);
-        return {
-          name: a.attname,
-          type: type || null,
-          notNull: a.attnotnull,
-        };
-      }));
-    }
+      const attrs = (await ctx.attributesByRelationLoader.load(p.typrelid)) || [];
+
+      return Promise.all(
+        attrs.map(async (a) => {
+          const type = await ctx.typeLoader.load(a.atttypid);
+          return {
+            name: a.attname,
+            type: type || null,
+            notNull: a.attnotnull,
+          };
+        })
+      );
+    },
   },
-  
+
   ArrayType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
@@ -927,14 +946,14 @@ export const resolvers = {
       return null;
     },
   },
-  
+
   ScalarType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
     name: (p: PgType) => p.typname,
     kind: () => "SCALAR",
   },
-  
+
   UnknownType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
@@ -945,12 +964,12 @@ export const resolvers = {
   Node: {
     __resolveType(obj: any) {
       console.log("Node __resolveType called with:", obj);
-      
+
       // If we already have a __typename (used for PgTypes in the node resolver)
       if (obj.__typename) {
         return obj.__typename;
       }
-      
+
       if (obj.datname) return "Database";
       if (obj.nspname) return "Schema";
       if (obj.relname && obj.relkind === "r") return "Table";
@@ -989,26 +1008,26 @@ export const resolvers = {
     columnMappings: async (p: PgForeignKey, _a: any, ctx: ReqContext) => {
       const [relationCols, foreignCols] = await Promise.all([
         ctx.attributesByRelationLoader.load(p.conrelid),
-        ctx.attributesByRelationLoader.load(p.confrelid)
+        ctx.attributesByRelationLoader.load(p.confrelid),
       ]);
-      
+
       if (!relationCols || !foreignCols) {
         return [];
       }
-      
+
       // Build a map of column numbers to columns
       const relColMap: Map<number, PgAttribute> = new Map();
       relationCols.forEach((c) => relColMap.set(c.attnum, c));
-      
+
       const forColMap: Map<number, PgAttribute> = new Map();
       foreignCols.forEach((c) => forColMap.set(c.attnum, c));
-      
+
       // Create FKColumn objects
       const result = [];
       for (let i = 0; i < p.conkey.length; i++) {
         const relCol = relColMap.get(p.conkey[i]);
         const forCol = forColMap.get(p.confkey[i]);
-        
+
         if (relCol && forCol) {
           result.push({
             referencingColumn: relCol,
@@ -1016,48 +1035,53 @@ export const resolvers = {
           });
         }
       }
-      
+
       return result;
     },
   },
 
   ForeignKeyConnection: {
-    edges: (p: { edges: Array<{ node: PgForeignKey }>; first: number; pageInfo: any }) =>
-      p.edges,
+    edges: (p: { edges: Array<{ node: PgForeignKey }>; first: number; pageInfo: any }) => p.edges,
     pageInfo: (p: { edges: Array<{ node: PgForeignKey }>; first: number; pageInfo: any }) => ({
       ...p.pageInfo,
     }),
     nodes: (p: { edges: Array<{ node: PgForeignKey }>; first: number }) =>
       p.edges.map((e) => e.node),
   },
-}
+};
 
 function resolvePgType(obj: PgType): string {
   console.log("Resolving PgType:", obj);
-  
-  const typtype = obj.typtype || ''; // Ensure typtype is a string
-  
-  if (typtype === 'd') return 'DomainType';
-  if (typtype === 'e') return 'EnumType'; 
-  if (typtype === 'c') return 'CompositeType';
-  if (typtype === 'b') {
+
+  const typtype = obj.typtype || ""; // Ensure typtype is a string
+
+  if (typtype === "d") return "DomainType";
+  if (typtype === "e") return "EnumType";
+  if (typtype === "c") return "CompositeType";
+  if (typtype === "b") {
     // For array types, check if typelem exists and is not zero
-    if (obj.typelem && obj.typelem !== 0) return 'ArrayType';
-    return 'ScalarType';
+    if (obj.typelem && obj.typelem !== 0) return "ArrayType";
+    return "ScalarType";
   }
-  
+
   // Default fallback
-  return 'UnknownType';
+  return "UnknownType";
 }
 
 function resolveForeignKeyAction(action: string): string {
   switch (action) {
-    case 'a': return 'NO_ACTION';
-    case 'r': return 'RESTRICT';
-    case 'c': return 'CASCADE';
-    case 'n': return 'SET_NULL';
-    case 'd': return 'SET_DEFAULT';
-    default: return 'NO_ACTION';
+    case "a":
+      return "NO_ACTION";
+    case "r":
+      return "RESTRICT";
+    case "c":
+      return "CASCADE";
+    case "n":
+      return "SET_NULL";
+    case "d":
+      return "SET_DEFAULT";
+    default:
+      return "NO_ACTION";
   }
 }
 
@@ -1065,11 +1089,7 @@ export const pgNamespaceResolvers = {
   // Field resolvers for PgNamespace (schema) objects
   schema: (parent: PgNamespace) => parent.nspname,
 
-  tables: async (
-    parent: PgNamespace,
-    _args: any,
-    ctx: ReqContext
-  ): Promise<PgClass[]> => {
+  tables: async (parent: PgNamespace, _args: any, ctx: ReqContext): Promise<PgClass[]> => {
     const classes = await ctx.resolveClasses();
     return classes.filter(
       (c) => c.relnamespace === parent.oid && (c.relkind === "r" || c.relkind === "p")
@@ -1092,14 +1112,10 @@ export const queryResolvers = {
   },
 
   // GraphQL Query: schemas: [PgNamespace!]!
-  schemas: async (
-    _parent: any,
-    _args: any,
-    ctx: ReqContext
-  ): Promise<PgNamespace[]> => {
+  schemas: async (_parent: any, _args: any, ctx: ReqContext): Promise<PgNamespace[]> => {
     return ctx.resolveNamespaces();
   },
-  
+
   // ... other existing resolvers ...
 };
 
@@ -1108,29 +1124,25 @@ export const queryResolvers = {
 export const tableResolvers = {
   // ... existing resolvers ...
 
-  schema: async (
-    parent: PgClass,
-    _args: any,
-    ctx: ReqContext
-  ): Promise<PgNamespace | null> => {
+  schema: async (parent: PgClass, _args: any, ctx: ReqContext): Promise<PgNamespace | null> => {
     return ctx.namespaceLoader.load(parent.relnamespace);
   },
-  
+
   // ... other existing resolvers ...
 };
 
 // ... other existing resolvers ...
 
-function parseDbType(row: any): PgType & { typnamespace?: number, nspname?: string } {
+function parseDbType(row: any): PgType & { typnamespace?: number; nspname?: string } {
   // Apply zod schema validation and transformation
   const baseType = PgTypeSchema.parse(row);
-  
+
   // Add additional fields if they exist in the row but not in the schema
   return {
     ...baseType,
     typbasetype: row.typbasetype,
     typelem: row.typelem,
     typnamespace: row.typnamespace,
-    nspname: row.nspname
+    nspname: row.nspname,
   };
 }
