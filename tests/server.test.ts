@@ -3559,7 +3559,7 @@ describe("GraphQL Server - Transactional Tests", () => {
   // =====================================
   // TEST: Fetch a PgType node by id
   // =====================================
-  it.skip("fetches a PgType node by id", async () => {
+  it("fetches a PgType node by id", async () => {
     await client.query("create schema test_schema;");
     await client.query("create type test_schema.test_type as (id int);");
     const result = await client.query(`
@@ -4653,8 +4653,8 @@ describe("GraphQL Server - Transactional Tests", () => {
       updateAction: "NO_ACTION",
       deleteAction: "CASCADE",
       columnMappings: [{
-      referencingColumn: { name: "parent_id" },
-      referencedColumn: { name: "id" }
+        referencingColumn: { name: "parent_id" },
+        referencedColumn: { name: "id" }
       }],
       referencedTable: { name: "parent" }
     });

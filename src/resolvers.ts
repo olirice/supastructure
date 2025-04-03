@@ -25,6 +25,12 @@ import util from "util";
 import { z } from 'zod';
 import { PgTypeSchema } from "./types.js";
 
+// Define PaginationArgs interface
+interface PaginationArgs {
+  first?: number;
+  after?: string;
+}
+
 export const resolvers = {
   Query: {
     database: async (
@@ -369,22 +375,13 @@ export const resolvers = {
           const kind = resolvePgType(type);
           console.log("Resolved kind:", kind);
           
-          // Build the ID string
-          const id = buildGlobalId("PgType", type.oid);
-          
-          // Return a specialized object with all the fields required by PgTypeInterface
+          // Return the type object directly - we already have all fields needed
+          // This will be assigned the right __typename through the Node type resolver
           return {
-            __typename: kind, // This helps GraphQL know which concrete type to use
-            id,
-            oid: type.oid,
-            name: type.typname,
-            kind: kind.replace('Type', '').toUpperCase(),
-            typtype: type.typtype,
-            typbasetype: type.typbasetype,
-            typelem: type.typelem,
-            typrelid: type.typrelid,
-            typnamespace: type.typnamespace,
-            nspname: type.nspname
+            ...type,
+            __typename: kind,
+            id: buildGlobalId("PgType", type.oid),
+            kind: kind.replace('Type', '').toUpperCase()
           };
         }
         case "Column": {
@@ -592,14 +589,17 @@ export const resolvers = {
       // Use DataLoader to batch and cache namespace lookups by OID
       return ctx.namespaceLoader.load(p.relnamespace);
     },
-    columns: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
-      // Use DataLoader to batch and cache attribute lookups by relation OID
-      const cols = await ctx.attributeLoader.load(p.oid) || [];
-      return paginate(cols, {
+    columns: async (p: PgClass, args: PaginationArgs, ctx: ReqContext): Promise<any> => {
+      const cols = await ctx.attributesByRelationLoader.load(p.oid) || [];
+      const paginationResult = paginate(cols, {
         first: args.first,
         after: args.after,
-        cursorForNode: (c) => String(c.attrelid),
+        cursorForNode: (node) => String(node.attnum),
       });
+      return {
+        edges: paginationResult.edges,
+        pageInfo: paginationResult.pageInfo,
+      };
     },
     indexes: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
       const indexes = await ctx.resolveIndexes(ix => ix.indrelid === p.oid);
@@ -710,14 +710,17 @@ export const resolvers = {
       // Use DataLoader to batch and cache namespace lookups by OID
       return ctx.namespaceLoader.load(p.relnamespace);
     },
-    columns: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
-      // Use DataLoader to batch and cache attribute lookups by relation OID
-      const cols = await ctx.attributeLoader.load(p.oid) || [];
-      return paginate(cols, {
+    columns: async (p: PgClass, args: PaginationArgs, ctx: ReqContext): Promise<any> => {
+      const cols = await ctx.attributesByRelationLoader.load(p.oid) || [];
+      const paginationResult = paginate(cols, {
         first: args.first,
         after: args.after,
-        cursorForNode: (c) => String(c.attrelid),
+        cursorForNode: (node) => String(node.attnum),
       });
+      return {
+        edges: paginationResult.edges,
+        pageInfo: paginationResult.pageInfo,
+      };
     },
     privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
       const result = await ctx.client.query(`
@@ -742,14 +745,17 @@ export const resolvers = {
     },
     isPopulated: (p: PgClass) =>
       typeof p.relispopulated === "boolean" ? p.relispopulated : false,
-    columns: async (p: PgClass, args: any, ctx: ReqContext): Promise<any> => {
-      // Use DataLoader to batch and cache attribute lookups by relation OID
-      const cols = await ctx.attributeLoader.load(p.oid) || [];
-      return paginate(cols, {
+    columns: async (p: PgClass, args: PaginationArgs, ctx: ReqContext): Promise<any> => {
+      const cols = await ctx.attributesByRelationLoader.load(p.oid) || [];
+      const paginationResult = paginate(cols, {
         first: args.first,
         after: args.after,
-        cursorForNode: (c) => String(c.attrelid),
+        cursorForNode: (node) => String(node.attnum),
       });
+      return {
+        edges: paginationResult.edges,
+        pageInfo: paginationResult.pageInfo,
+      };
     },
     privileges: async (p: PgClass, args: { roleName: string }, ctx: ReqContext): Promise<any> => {
       const result = await ctx.client.query(`
@@ -890,22 +896,24 @@ export const resolvers = {
     oid: (p: PgType) => p.oid,
     name: (p: PgType) => p.typname,
     kind: () => "COMPOSITE",
-    fields: async (p: PgType, _a: unknown, ctx: ReqContext): Promise<any> => {
-      if (!p.typrelid) return [];
+    fields: async (p: PgType, _args: any, ctx: ReqContext) => {
+      if (!p.typrelid) {
+        console.warn(`Missing typrelid for composite type ${p.typname}`);
+        return [];
+      }
       
       // Use DataLoader to batch and cache attribute lookups by relation OID
-      const attrs = await ctx.attributeLoader.load(p.typrelid) || [];
+      const attrs = await ctx.attributesByRelationLoader.load(p.typrelid) || [];
       
       return Promise.all(attrs.map(async (a) => {
-        // Use DataLoader to batch and cache type lookups by OID
         const type = await ctx.typeLoader.load(a.atttypid);
         return {
           name: a.attname,
-          type: type,
+          type: type || null,
           notNull: a.attnotnull,
         };
       }));
-    },
+    }
   },
   
   ArrayType: {
@@ -980,19 +988,38 @@ export const resolvers = {
     },
     updateAction: (p: PgForeignKey) => resolveForeignKeyAction(p.confupdtype),
     deleteAction: (p: PgForeignKey) => resolveForeignKeyAction(p.confdeltype),
-    columnMappings: async (p: PgForeignKey, _a: any, ctx: ReqContext): Promise<any> => {
-      // Load all attributes for the referencing and referenced tables
-      const [referencingAttrs, referencedAttrs] = await Promise.all([
-        ctx.attributeLoader.load(p.conrelid),
-        ctx.attributeLoader.load(p.confrelid)
+    columnMappings: async (p: PgForeignKey, _a: any, ctx: ReqContext) => {
+      const [relationCols, foreignCols] = await Promise.all([
+        ctx.attributesByRelationLoader.load(p.conrelid),
+        ctx.attributesByRelationLoader.load(p.confrelid)
       ]);
       
-      if (!referencingAttrs || !referencedAttrs) return [];
+      if (!relationCols || !foreignCols) {
+        return [];
+      }
       
-      return p.conkey.map((attnum: number, idx: number) => ({
-        referencingColumn: referencingAttrs.find(a => a.attnum === attnum) || null,
-        referencedColumn: referencedAttrs.find(a => a.attnum === p.confkey[idx]) || null,
-      }));
+      // Build a map of column numbers to columns
+      const relColMap: Map<number, PgAttribute> = new Map();
+      relationCols.forEach((c) => relColMap.set(c.attnum, c));
+      
+      const forColMap: Map<number, PgAttribute> = new Map();
+      foreignCols.forEach((c) => forColMap.set(c.attnum, c));
+      
+      // Create FKColumn objects
+      const result = [];
+      for (let i = 0; i < p.conkey.length; i++) {
+        const relCol = relColMap.get(p.conkey[i]);
+        const forCol = forColMap.get(p.confkey[i]);
+        
+        if (relCol && forCol) {
+          result.push({
+            referencingColumn: relCol,
+            referencedColumn: forCol,
+          });
+        }
+      }
+      
+      return result;
     },
   },
 

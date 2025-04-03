@@ -26,6 +26,7 @@ import pg from "pg";
 import DataLoader from "dataloader";
 import { createNamespaceLoaders } from "./loaders/pg_namespaces.js";
 import { createClassLoaders } from "./loaders/pg_classes.js";
+import { attributeQueries, createAttributeLoaders } from "./loaders/pg_attributes.js";
 
 /**
  * Helper functions for parsing database rows into typed objects
@@ -355,12 +356,21 @@ export interface ReqContext {
    * lookups into a single query and caching results
    */
   typeLoader: DataLoader<number, PgType | null>;
-  namespaceLoader: DataLoader<number, PgNamespace | null>;
-  namespaceByNameLoader: DataLoader<string, PgNamespace | null>;
   classLoader: DataLoader<number, PgClass | null>;
-  classByNameLoader: DataLoader<{ schema: string, name: string }, PgClass | null>;
-  classesByNamespaceLoader: DataLoader<{ namespaceOid: number, relkind?: string }, PgClass[]>;
-  attributeLoader: DataLoader<number, PgAttribute[] | null>;
+  classByNameLoader: DataLoader<
+    { schema: string; name: string },
+    PgClass | null
+  >;
+  classesByNamespaceLoader: DataLoader<
+    { namespaceOid: number; relkind?: string },
+    PgClass[]
+  >;
+  attributesByRelationLoader: DataLoader<number, PgAttribute[] | null>;
+  attributesByTableNameLoader: DataLoader<
+    { schemaName: string; tableName: string },
+    PgAttribute[] | null,
+    string
+  >;
   triggerLoader: DataLoader<number, PgTrigger[] | null>;
   policyLoader: DataLoader<number, PgPolicy[] | null>;
   
@@ -380,6 +390,12 @@ export interface ReqContext {
     roles?: PgRole[];
     foreignKeys?: PgForeignKey[];
   };
+
+  /**
+   * Namespace loaders
+   */
+  namespaceLoader: DataLoader<number, PgNamespace | null>;
+  namespaceByNameLoader: DataLoader<string, PgNamespace | null>;
 }
 
 /**
@@ -446,18 +462,16 @@ export async function context(
     // Create class loaders
     const classLoaders = createClassLoaders(client);
     
+    // Create attribute loaders
+    const attributeLoaders = createAttributeLoaders(client);
+    
     // Use namespace loaders to implement resolveNamespaces
     const resolveNamespaces = namespaceLoaders.getAllNamespaces;
     
     // Use class loaders to implement resolveClasses
     const resolveClasses = classLoaders.getAllClasses;
     
-    const resolveAttributes = async (filter?: (attr: PgAttribute) => boolean) => {
-      if (!dataSources.attributes) {
-        dataSources.attributes = await queries.attributes(client);
-      }
-      return filter ? dataSources.attributes.filter(filter) : dataSources.attributes;
-    };
+    const resolveAttributes = attributeLoaders.getAllAttributes;
     
     const resolveTriggers = async (filter?: (trigger: PgTrigger) => boolean) => {
       if (!dataSources.triggers) {
@@ -688,15 +702,16 @@ export async function context(
       resolveRoles,
       resolveForeignKeys,
       typeLoader,
-      namespaceLoader: namespaceLoaders.namespaceLoader,
-      namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader,
       classLoader: classLoaders.classLoader,
       classByNameLoader: classLoaders.classByNameLoader,
       classesByNamespaceLoader: classLoaders.classesByNamespaceLoader,
-      attributeLoader,
+      attributesByRelationLoader: attributeLoaders.attributesByRelationLoader,
+      attributesByTableNameLoader: attributeLoaders.attributesByTableNameLoader,
       triggerLoader,
       policyLoader,
-      dataSources
+      dataSources,
+      namespaceLoader: namespaceLoaders.namespaceLoader,
+      namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader
     };
   } catch (err) {
     console.error("error loading data:", err);

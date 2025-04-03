@@ -90,11 +90,33 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     });
   });
   
-  const attributeLoader = new DataLoader<number, PgAttribute[] | null>(async (keys) => {
+  // Create attributeLoaders
+  const attributesByRelationLoader = new DataLoader<number, PgAttribute[] | null>(async (keys) => {
     return keys.map(key => {
       const attrs = attributes.filter(a => a.attrelid === key);
       return attrs.length > 0 ? attrs : null;
     });
+  });
+  
+  const attributesByTableNameLoader = new DataLoader<
+    { schemaName: string; tableName: string },
+    PgAttribute[] | null,
+    string
+  >(async (keys) => {
+    return keys.map(key => {
+      // Find the class first
+      const cls = classes.find(c => {
+        const ns = namespaces.find(n => n.oid === c.relnamespace);
+        return ns && ns.nspname === key.schemaName && c.relname === key.tableName;
+      });
+      
+      if (!cls) return null;
+      
+      const attrs = attributes.filter(a => a.attrelid === cls.oid);
+      return attrs.length > 0 ? attrs : null;
+    });
+  }, {
+    cacheKeyFn: (key) => `${key.schemaName}.${key.tableName}`
   });
   
   const triggerLoader = new DataLoader<number, any[] | null>(async (keys) => {
@@ -139,7 +161,8 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     classLoader,
     classByNameLoader,
     classesByNamespaceLoader,
-    attributeLoader,
+    attributesByRelationLoader,
+    attributesByTableNameLoader,
     triggerLoader,
     policyLoader,
     dataSources,
