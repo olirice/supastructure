@@ -4,7 +4,7 @@ import { startStandaloneServer } from "@apollo/server/standalone";
 import { readFileSync } from "fs";
 import { gql } from "graphql-tag";
 import { resolvers } from "./resolvers.js";
-import type { DbConfig, ReqContext} from "./context.js";
+import type { DbConfig, ReqContext } from "./context.js";
 import { context, releaseClient } from "./context.js";
 
 // Load environment variables

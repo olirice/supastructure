@@ -1,4 +1,4 @@
-import type { PgClass} from "../types.js";
+import type { PgClass } from "../types.js";
 import { PgClassSchema } from "../types.js";
 import type pg from "pg";
 import DataLoader from "dataloader";

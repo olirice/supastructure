@@ -4,7 +4,7 @@ import { Pool } from "pg";
 import fs from "fs";
 import { gql } from "graphql-tag";
 import { resolvers } from "../src/resolvers.js";
-import type { ReqContext} from "../src/context.js";
+import type { ReqContext } from "../src/context.js";
 import { context, DbConfig } from "../src/context.js";
 import { dbConfig } from "../src/index.js";
 import { buildGlobalId } from "../src/generic.js";

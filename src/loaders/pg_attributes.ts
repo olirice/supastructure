@@ -1,6 +1,6 @@
 import DataLoader from "dataloader";
 import type { Client, PoolClient } from "pg";
-import type { PgAttribute} from "../types.js";
+import type { PgAttribute } from "../types.js";
 import { PgAttributeSchema } from "../types.js";
 
 /**

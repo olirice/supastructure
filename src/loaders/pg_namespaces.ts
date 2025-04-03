@@ -1,4 +1,4 @@
-import type { PgNamespace} from "../types.js";
+import type { PgNamespace } from "../types.js";
 import { PgNamespaceSchema } from "../types.js";
 import type pg from "pg";
 import DataLoader from "dataloader";

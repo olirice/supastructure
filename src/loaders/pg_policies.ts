@@ -1,4 +1,4 @@
-import type { PgPolicy} from "../types.js";
+import type { PgPolicy } from "../types.js";
 import { PgPolicySchema } from "../types.js";
 import type pg from "pg";
 import DataLoader from "dataloader";

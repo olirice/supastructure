@@ -7,13 +7,10 @@ import type {
   PgPolicy,
   PgType,
   PgRole,
-  PgForeignKey} from "./types.js";
-import {
-  PgEnum,
-  PgIndex,
-  PgForeignKeySchema,
+  PgForeignKey,
 } from "./types.js";
-import type { ReqContext} from "./context.js";
+import { PgEnum, PgIndex, PgForeignKeySchema } from "./types.js";
+import type { ReqContext } from "./context.js";
 import { queries } from "./context.js";
 import {
   decodeId,

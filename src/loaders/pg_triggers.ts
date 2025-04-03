@@ -1,4 +1,4 @@
-import type { PgTrigger} from "../types.js";
+import type { PgTrigger } from "../types.js";
 import { PgTriggerSchema } from "../types.js";
 import type pg from "pg";
 import DataLoader from "dataloader";

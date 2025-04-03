@@ -1,6 +1,13 @@
 import { resolvers } from "../src/resolvers.js";
 import type { ReqContext } from "../src/context.js";
-import type { PgType, PgNamespace, PgClass, PgAttribute, PgTrigger, PgPolicy } from "../src/types.js";
+import type {
+  PgType,
+  PgNamespace,
+  PgClass,
+  PgAttribute,
+  PgTrigger,
+  PgPolicy,
+} from "../src/types.js";
 import DataLoader from "dataloader";
 
 function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {

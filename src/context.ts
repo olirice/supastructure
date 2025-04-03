@@ -9,7 +9,8 @@ import type {
   PgEnum,
   PgIndex,
   PgRole,
-  PgForeignKey} from "./types.js";
+  PgForeignKey,
+} from "./types.js";
 import {
   PgAttributeSchema,
   PgDatabaseSchema,
