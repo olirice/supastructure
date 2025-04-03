@@ -151,8 +151,12 @@ export function createTypeLoaders(client: Client | PoolClient) {
       // Create a map for quick lookups by schema and name
       const typeMap = new Map<string, PgType>();
       types.forEach((type) => {
-        const key = `${type.nspname}.${type.typname}`;
-        typeMap.set(key, type);
+        // Get the nspname from the row data directly
+        const nspname = (type as any).nspname;
+        if (nspname) {
+          const key = `${nspname}.${type.typname}`;
+          typeMap.set(key, type);
+        }
       });
 
       return keys.map((key) => typeMap.get(`${key.schemaName}.${key.typeName}`) || null);

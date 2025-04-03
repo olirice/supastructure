@@ -70,6 +70,7 @@ export interface ReqContext {
   policyLoader: DataLoader<number, PgPolicy | null>;
   policiesByRelationLoader: DataLoader<number, PgPolicy[]>;
   enumByTypeIdLoader: DataLoader<number, PgEnum | null>;
+  enumByNameLoader: DataLoader<{ schemaName: string; enumName: string }, PgEnum | null, string>;
   indexLoader: DataLoader<number, PgIndex | null>;
   indexesByRelationLoader: DataLoader<number, PgIndex[]>;
   roleLoader: DataLoader<number, PgRole | null>;
@@ -185,7 +186,7 @@ export async function context(
     const { typeLoader, typeByNameLoader, getAllTypes } = createTypeLoaders(client);
     
     // Create enum loaders
-    const { enumByTypeIdLoader, getAllEnums } = createEnumLoaders(client);
+    const { enumByTypeIdLoader, enumByNameLoader, getAllEnums } = createEnumLoaders(client);
     
     // Create index loaders
     const { indexLoader, indexesByRelationLoader, getAllIndexes } = createIndexLoaders(client);
@@ -253,6 +254,7 @@ export async function context(
       policyLoader,
       policiesByRelationLoader,
       enumByTypeIdLoader,
+      enumByNameLoader,
       indexLoader,
       indexesByRelationLoader,
       roleLoader,

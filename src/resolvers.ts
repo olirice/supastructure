@@ -11,7 +11,6 @@ import type {
 } from "./types.js";
 import { PgEnum, PgIndex, PgForeignKeySchema } from "./types.js";
 import type { ReqContext } from "./context.js";
-import { queries } from "./context.js";
 import {
   decodeId,
   singleResultOrError,
@@ -23,6 +22,15 @@ import {
 import util from "util";
 import { z } from "zod";
 import { PgTypeSchema } from "./types.js";
+import {
+  GraphQLSchema,
+  GraphQLObjectType,
+  GraphQLList,
+  GraphQLInt,
+  GraphQLString,
+  GraphQLBoolean,
+  GraphQLNonNull,
+} from "graphql";
 
 // Define PaginationArgs interface
 interface PaginationArgs {
@@ -273,18 +281,18 @@ export const resolvers = {
 
     role: async (
       _p: unknown,
-      args: { name?: string; id?: string; oid?: number },
+      args: { id?: string; oid?: number; name?: string },
       ctx: ReqContext
     ): Promise<PgRole | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Role") {
-        return await queries.roleByOid(ctx.client, fromId.oid);
+        return await ctx.roleLoader.load(fromId.oid);
       }
       if (args.oid) {
-        return await queries.roleByOid(ctx.client, args.oid);
+        return await ctx.roleLoader.load(args.oid);
       }
       if (args.name) {
-        return await queries.roleByName(ctx.client, args.name);
+        return await ctx.roleByNameLoader.load(args.name);
       }
       return null;
     },
@@ -1142,4 +1150,360 @@ function parseDbType(row: any): PgType & { typnamespace?: number; nspname?: stri
     typnamespace: row.typnamespace,
     nspname: row.nspname,
   };
+}
+
+// Create our schema with all the resolvers
+export async function createSchema(): Promise<GraphQLSchema> {
+  // Define all types
+  // Type to represent a PostgreSQL namespace (schema)
+  const schemaType: GraphQLObjectType = new GraphQLObjectType({
+    name: "Schema",
+    description: "A PostgreSQL namespace or schema",
+    fields: () => ({
+      oid: { type: GraphQLInt, description: "OID of the schema in the system catalog" },
+      name: { type: GraphQLString, description: "Name of the schema" },
+      tables: {
+        type: new GraphQLList(tableType),
+        description: "Tables in this schema",
+        resolve: async (schema: PgNamespace, _, context: ReqContext) => {
+          const all = await context.resolveClasses();
+          return all.filter(
+            (c) => c.relnamespace === schema.oid && c.relkind === "r" && c.relispopulated
+          );
+        },
+      },
+      views: {
+        type: new GraphQLList(viewType),
+        description: "Materialized and non-materialized views in this schema",
+        resolve: async (schema: PgNamespace, _, context: ReqContext) => {
+          const all = await context.resolveClasses();
+          return all.filter(
+            (c) =>
+              c.relnamespace === schema.oid &&
+              (c.relkind === "v" || c.relkind === "m") &&
+              c.relispopulated
+          );
+        },
+      },
+      enums: {
+        type: new GraphQLList(enumType),
+        description: "Enum types in this schema",
+        resolve: async (schema: PgNamespace, _, context: ReqContext) => {
+          const all = await context.resolveEnums();
+          return all.filter((e) => e.enumtypid && context.typeLoader.load(e.enumtypid));
+        },
+      },
+    }),
+  });
+
+  // Type for a PostgreSQL relation like a table or view
+  const tableType: GraphQLObjectType = new GraphQLObjectType({
+    name: "Table",
+    description: "A PostgreSQL relation or table",
+    fields: () => ({
+      oid: { type: GraphQLInt, description: "OID of the relation in the system catalog" },
+      name: { type: GraphQLString, description: "Name of the relation" },
+      kind: { type: GraphQLString, description: "Kind of relation (r = table, v = view, etc.)" },
+      hasRowSecurity: {
+        type: GraphQLBoolean,
+        description: "Whether row-level security is enabled on this table",
+      },
+      schema: {
+        type: schemaType,
+        description: "Schema containing this relation",
+        resolve: async (table: PgClass, _, context: ReqContext) => {
+          return context.namespaceLoader.load(table.relnamespace);
+        },
+      },
+      columns: {
+        type: new GraphQLList(columnType),
+        description: "Columns in this relation",
+        resolve: async (table: PgClass, _, context: ReqContext) => {
+          const cols = await context.attributesByRelationLoader.load(table.oid);
+          return cols || [];
+        },
+      },
+      triggers: {
+        type: new GraphQLList(triggerType),
+        description: "Triggers on this relation",
+        resolve: async (table: PgClass, _, context: ReqContext) => {
+          const triggers = await context.triggersByRelationLoader.load(table.oid);
+          return triggers || [];
+        },
+      },
+      policies: {
+        type: new GraphQLList(policyType),
+        description: "Row-level security policies on this relation",
+        resolve: async (table: PgClass, _, context: ReqContext) => {
+          const policies = await context.policiesByRelationLoader.load(table.oid);
+          return policies || [];
+        },
+      },
+    }),
+  });
+
+  // Define view type to match table type but with a different name
+  const viewType: GraphQLObjectType = new GraphQLObjectType({
+    name: "View",
+    description: "A PostgreSQL view",
+    fields: () => ({
+      oid: { type: GraphQLInt, description: "OID of the view in the system catalog" },
+      name: { type: GraphQLString, description: "Name of the view" },
+      kind: { type: GraphQLString, description: "Kind of view (v = view, m = materialized view)" },
+      schema: {
+        type: schemaType,
+        description: "Schema containing this view",
+        resolve: async (view: PgClass, _, context: ReqContext) => {
+          return context.namespaceLoader.load(view.relnamespace);
+        },
+      },
+      columns: {
+        type: new GraphQLList(columnType),
+        description: "Columns in this view",
+        resolve: async (view: PgClass, _, context: ReqContext) => {
+          const cols = await context.attributesByRelationLoader.load(view.oid);
+          return cols || [];
+        },
+      },
+    }),
+  });
+
+  // Type for a PostgreSQL column (attribute)
+  const columnType: GraphQLObjectType = new GraphQLObjectType({
+    name: "Column",
+    description: "A PostgreSQL column (attribute)",
+    fields: () => ({
+      name: { type: GraphQLString, description: "Name of the column" },
+      num: { type: GraphQLInt, description: "Attribute number in the relation" },
+      typeOid: { type: GraphQLInt, description: "OID of the data type" },
+      notNull: { type: GraphQLBoolean, description: "Whether this column disallows NULL values" },
+      type: {
+        type: dataTypeType,
+        description: "Data type of this column",
+        resolve: async (col: PgAttribute, _, context: ReqContext) => {
+          return context.typeLoader.load(col.atttypid);
+        },
+      },
+      table: {
+        type: tableType,
+        description: "Table or view containing this column",
+        resolve: async (col: PgAttribute, _, context: ReqContext) => {
+          return context.classLoader.load(col.attrelid);
+        },
+      },
+    }),
+  });
+
+  // Type for a PostgreSQL type
+  const dataTypeType: GraphQLObjectType = new GraphQLObjectType({
+    name: "DataType",
+    description: "A PostgreSQL data type",
+    fields: () => ({
+      oid: { type: GraphQLInt, description: "OID of the type in the system catalog" },
+      name: { type: GraphQLString, description: "Name of the type" },
+      kind: { type: GraphQLString, description: "Kind of type (b = base, c = composite, etc.)" },
+      schema: {
+        type: schemaType,
+        description: "Schema containing this type",
+        resolve: async (type: PgType, _, context: ReqContext) => {
+          // Only attempt to load if typnamespace is defined
+          return type.typnamespace !== undefined ? context.namespaceLoader.load(type.typnamespace) : null;
+        },
+      },
+    }),
+  });
+
+  // Type for a PostgreSQL trigger
+  const triggerType = new GraphQLObjectType({
+    name: "Trigger",
+    description: "A PostgreSQL trigger",
+    fields: () => ({
+      oid: { type: GraphQLInt, description: "OID of the trigger in the system catalog" },
+      name: { type: GraphQLString, description: "Name of the trigger" },
+      table: {
+        type: tableType,
+        description: "Table this trigger belongs to",
+        resolve: async (trigger: PgTrigger, _, context: ReqContext) => {
+          return context.classLoader.load(trigger.tgrelid);
+        },
+      },
+    }),
+  });
+
+  // Type for a PostgreSQL row-level security policy
+  const policyType = new GraphQLObjectType({
+    name: "Policy",
+    description: "A PostgreSQL row-level security policy",
+    fields: () => ({
+      oid: { type: GraphQLInt, description: "OID of the policy in the system catalog" },
+      name: { type: GraphQLString, description: "Name of the policy" },
+      command: { type: GraphQLString, description: "SQL command this policy applies to" },
+      roles: { type: new GraphQLList(GraphQLString), description: "Roles this policy applies to" },
+      qual: { type: GraphQLString, description: "Qualification expression for the policy" },
+      withCheck: {
+        type: GraphQLString,
+        description: "WITH CHECK expression for the policy",
+      },
+      table: {
+        type: tableType,
+        description: "Table this policy belongs to",
+        resolve: async (policy: PgPolicy, _, context: ReqContext) => {
+          return context.classLoader.load(policy.polrelid);
+        },
+      },
+    }),
+  });
+
+  // Type for a PostgreSQL enum type
+  const enumType = new GraphQLObjectType({
+    name: "Enum",
+    description: "A PostgreSQL enum type",
+    fields: () => ({
+      typeId: { 
+        type: GraphQLInt, 
+        description: "OID of the enum's type in the system catalog",
+        resolve: (enum_: PgEnum) => enum_.enumtypid 
+      },
+      labels: { 
+        type: new GraphQLList(GraphQLString), 
+        description: "Values in this enum type" 
+      },
+      type: {
+        type: dataTypeType,
+        description: "Type information for this enum",
+        resolve: async (enum_: PgEnum, _, context: ReqContext) => {
+          return context.typeLoader.load(enum_.enumtypid);
+        },
+      },
+    }),
+  });
+
+  // Define the query type with all entry points
+  const queryType = new GraphQLObjectType({
+    name: "Query",
+    description: "Root query object",
+    fields: {
+      schemas: {
+        type: new GraphQLList(schemaType),
+        description: "All PostgreSQL schemas/namespaces",
+        args: {
+          first: { type: GraphQLInt, description: "Limit to first N results" },
+          offset: { type: GraphQLInt, description: "Skip first N results" },
+        },
+        resolve: async (_, { first, offset }, context: ReqContext) => {
+          const all = await context.resolveNamespaces();
+          return limitPageSize(all, first, offset);
+        },
+      },
+      schema: {
+        type: schemaType,
+        description: "Look up a PostgreSQL schema by name",
+        args: {
+          name: { type: new GraphQLNonNull(GraphQLString), description: "Schema name" },
+        },
+        resolve: async (_, { name }, context: ReqContext) => {
+          return context.namespaceByNameLoader.load(name);
+        },
+      },
+      tables: {
+        type: new GraphQLList(tableType),
+        description: "All PostgreSQL tables",
+        args: {
+          first: { type: GraphQLInt, description: "Limit to first N results" },
+          offset: { type: GraphQLInt, description: "Skip first N results" },
+        },
+        resolve: async (_, { first, offset }, context: ReqContext) => {
+          const all = await context.resolveClasses();
+          const tables = all.filter((c) => c.relkind === "r" && c.relispopulated);
+          return limitPageSize(tables, first, offset);
+        },
+      },
+      table: {
+        type: tableType,
+        description: "Look up a PostgreSQL table by schema and name",
+        args: {
+          schemaName: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: "Schema name",
+          },
+          tableName: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: "Table name",
+          },
+        },
+        resolve: async (_, { schemaName, tableName }, context: ReqContext) => {
+          return context.classByNameLoader.load({
+            schema: schemaName,
+            name: tableName,
+          });
+        },
+      },
+      views: {
+        type: new GraphQLList(viewType),
+        description: "All PostgreSQL views (including materialized views)",
+        args: {
+          first: { type: GraphQLInt, description: "Limit to first N results" },
+          offset: { type: GraphQLInt, description: "Skip first N results" },
+        },
+        resolve: async (_, { first, offset }, context: ReqContext) => {
+          const all = await context.resolveClasses();
+          const views = all.filter(
+            (c) => (c.relkind === "v" || c.relkind === "m") && c.relispopulated
+          );
+          return limitPageSize(views, first, offset);
+        },
+      },
+      view: {
+        type: viewType,
+        description: "Look up a PostgreSQL view by schema and name",
+        args: {
+          schemaName: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: "Schema name",
+          },
+          viewName: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: "View name",
+          },
+        },
+        resolve: async (_, { schemaName, viewName }, context: ReqContext) => {
+          const cls = await context.classByNameLoader.load({
+            schema: schemaName,
+            name: viewName,
+          });
+          if (!cls || (cls.relkind !== "v" && cls.relkind !== "m")) {
+            return null;
+          }
+          return cls;
+        },
+      },
+      typeFromOid: {
+        type: dataTypeType,
+        description: "Get a PostgreSQL type by OID",
+        args: {
+          oid: { type: new GraphQLNonNull(GraphQLInt), description: "Type OID" },
+        },
+        resolve: async (_, { oid }, context: ReqContext) => {
+          return context.typeLoader.load(oid);
+        },
+      },
+      enums: {
+        type: new GraphQLList(enumType),
+        description: "All PostgreSQL enum types",
+        args: {
+          first: { type: GraphQLInt, description: "Limit to first N results" },
+          offset: { type: GraphQLInt, description: "Skip first N results" },
+        },
+        resolve: async (_, { first, offset }, context: ReqContext) => {
+          const all = await context.resolveEnums();
+          return limitPageSize(all, first, offset);
+        },
+      },
+    },
+  });
+
+  // Create and return the schema
+  return new GraphQLSchema({
+    query: queryType,
+  });
 }

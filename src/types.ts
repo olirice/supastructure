@@ -57,6 +57,7 @@ export const PgTypeSchema = z.object({
   typbasetype: z.number().int().optional(),
   typelem: z.number().int().optional(),
   typrelid: z.number().int().optional(),
+  typnamespace: z.number().int().optional(),
 });
 export type PgType = z.infer<typeof PgTypeSchema>;
 

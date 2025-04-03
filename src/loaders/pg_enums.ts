@@ -73,7 +73,31 @@ export const enumQueries = {
 
     const result = await client.query(query, params.length > 0 ? params : []);
 
-    return result.rows.map((row) => PgEnumSchema.parse(row));
+    // Ensure enumlabels is always treated as an array
+    return result.rows.map((row) => {
+      // If enumlabels is a string (could happen with database driver parsing), convert it to array
+      if (typeof row.enumlabels === 'string') {
+        try {
+          // Parse the string if it's in a format like '{a,b,c}'
+          if (row.enumlabels.startsWith('{') && row.enumlabels.endsWith('}')) {
+            // Remove the braces and split by comma
+            const parsed = row.enumlabels.slice(1, -1).split(',').map((s: string) => s.trim());
+            row.enumlabels = parsed;
+          } else {
+            // Fallback to single element array
+            row.enumlabels = [row.enumlabels];
+          }
+        } catch (e) {
+          // In case of parsing error, ensure we have an array
+          row.enumlabels = [row.enumlabels];
+        }
+      } else if (!Array.isArray(row.enumlabels)) {
+        // If it's not a string and not an array, make it an empty array
+        row.enumlabels = [];
+      }
+      
+      return PgEnumSchema.parse(row);
+    });
   },
 
   /**
@@ -126,8 +150,13 @@ export function createEnumLoaders(client: Client | PoolClient) {
       // Create a map for quick lookups by schema and name
       const enumMap = new Map<string, PgEnum>();
       enums.forEach((enum_) => {
-        const key = `${enum_.schemaname}.${enum_.enumname}`;
-        enumMap.set(key, enum_);
+        // Get the schemaname and enumname from the row data directly
+        const schemaname = (enum_ as any).schemaname;
+        const enumname = (enum_ as any).enumname;
+        if (schemaname && enumname) {
+          const key = `${schemaname}.${enumname}`;
+          enumMap.set(key, enum_);
+        }
       });
 
       return keys.map((key) => enumMap.get(`${key.schemaName}.${key.enumName}`) || null);
