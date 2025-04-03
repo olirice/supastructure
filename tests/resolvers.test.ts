@@ -169,7 +169,9 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
       return keys.map((key) => {
         const namespace = namespaces.find((n) => n.nspname === key.schemaName);
         if (!namespace) return null;
-        const type = types.find((t) => t.typname === key.typeName && t.typnamespace === namespace.oid);
+        const type = types.find(
+          (t) => t.typname === key.typeName && t.typnamespace === namespace.oid
+        );
         return type || null;
       });
     },
@@ -249,12 +251,14 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
   });
 
   // Create foreignKeysByReferencedRelationLoader
-  const foreignKeysByReferencedRelationLoader = new DataLoader<number, PgForeignKey[]>(async (keys) => {
-    return keys.map((key) => {
-      const referencedFks = foreignKeys.filter((f) => f.confrelid === key);
-      return referencedFks;
-    });
-  });
+  const foreignKeysByReferencedRelationLoader = new DataLoader<number, PgForeignKey[]>(
+    async (keys) => {
+      return keys.map((key) => {
+        const referencedFks = foreignKeys.filter((f) => f.confrelid === key);
+        return referencedFks;
+      });
+    }
+  );
 
   return {
     resolveDatabase: jest.fn().mockResolvedValue(database),

@@ -29,7 +29,13 @@ export const foreignKeyQueries = {
     client: pg.Client | pg.PoolClient,
     options: ForeignKeyQueryOptions = {}
   ): Promise<PgForeignKey[]> {
-    const { constraintOids, relationOids, referencedRelationOids, schemaNames, includeSystemSchemas } = options;
+    const {
+      constraintOids,
+      relationOids,
+      referencedRelationOids,
+      schemaNames,
+      includeSystemSchemas,
+    } = options;
 
     // Build the WHERE clause based on filter options
     const conditions: string[] = [];
@@ -103,16 +109,22 @@ export const foreignKeyQueries = {
   /**
    * Get foreign keys by relation OID (source table)
    */
-  async byRelationOid(client: pg.Client | pg.PoolClient, relationOid: number): Promise<PgForeignKey[]> {
+  async byRelationOid(
+    client: pg.Client | pg.PoolClient,
+    relationOid: number
+  ): Promise<PgForeignKey[]> {
     return this.query(client, { relationOids: [relationOid] });
   },
 
   /**
    * Get foreign keys by referenced relation OID (target table)
    */
-  async byReferencedRelationOid(client: pg.Client | pg.PoolClient, referencedRelationOid: number): Promise<PgForeignKey[]> {
+  async byReferencedRelationOid(
+    client: pg.Client | pg.PoolClient,
+    referencedRelationOid: number
+  ): Promise<PgForeignKey[]> {
     return this.query(client, { referencedRelationOids: [referencedRelationOid] });
-  }
+  },
 };
 
 /**
@@ -126,61 +138,72 @@ export function createForeignKeyLoaders(client: pg.Client | pg.PoolClient) {
    */
   const foreignKeyLoader = new DataLoader<number, PgForeignKey | null>(async (oids) => {
     const foreignKeys = await foreignKeyQueries.query(client, { constraintOids: [...oids] });
-    
+
     // Create a map for fast lookup by OID
     const foreignKeyMap = new Map<number, PgForeignKey>();
-    foreignKeys.forEach(fk => {
+    foreignKeys.forEach((fk) => {
       foreignKeyMap.set(fk.oid, fk);
     });
-    
+
     // Return foreign keys in the same order as requested OIDs
-    return oids.map(oid => foreignKeyMap.get(oid) || null);
+    return oids.map((oid) => foreignKeyMap.get(oid) || null);
   });
 
   /**
    * DataLoader for loading foreign keys by relation OID (source table)
    */
-  const foreignKeysByRelationLoader = new DataLoader<number, PgForeignKey[]>(async (relationOids) => {
-    const foreignKeys = await foreignKeyQueries.query(client, { relationOids: [...relationOids] });
-    
-    // Group foreign keys by relation OID
-    const foreignKeysByRelation = new Map<number, PgForeignKey[]>();
-    relationOids.forEach(oid => foreignKeysByRelation.set(oid, []));
-    
-    foreignKeys.forEach(fk => {
-      const relationForeignKeys = foreignKeysByRelation.get(fk.conrelid) || [];
-      relationForeignKeys.push(fk);
-      foreignKeysByRelation.set(fk.conrelid, relationForeignKeys);
-    });
-    
-    // Return foreign keys in the same order as requested relation OIDs
-    return relationOids.map(oid => foreignKeysByRelation.get(oid) || []);
-  });
+  const foreignKeysByRelationLoader = new DataLoader<number, PgForeignKey[]>(
+    async (relationOids) => {
+      const foreignKeys = await foreignKeyQueries.query(client, {
+        relationOids: [...relationOids],
+      });
+
+      // Group foreign keys by relation OID
+      const foreignKeysByRelation = new Map<number, PgForeignKey[]>();
+      relationOids.forEach((oid) => foreignKeysByRelation.set(oid, []));
+
+      foreignKeys.forEach((fk) => {
+        const relationForeignKeys = foreignKeysByRelation.get(fk.conrelid) || [];
+        relationForeignKeys.push(fk);
+        foreignKeysByRelation.set(fk.conrelid, relationForeignKeys);
+      });
+
+      // Return foreign keys in the same order as requested relation OIDs
+      return relationOids.map((oid) => foreignKeysByRelation.get(oid) || []);
+    }
+  );
 
   /**
    * DataLoader for loading foreign keys by referenced relation OID (target table)
    */
-  const foreignKeysByReferencedRelationLoader = new DataLoader<number, PgForeignKey[]>(async (referencedRelationOids) => {
-    const foreignKeys = await foreignKeyQueries.query(client, { referencedRelationOids: [...referencedRelationOids] });
-    
-    // Group foreign keys by referenced relation OID
-    const foreignKeysByReferencedRelation = new Map<number, PgForeignKey[]>();
-    referencedRelationOids.forEach(oid => foreignKeysByReferencedRelation.set(oid, []));
-    
-    foreignKeys.forEach(fk => {
-      const referencedRelationForeignKeys = foreignKeysByReferencedRelation.get(fk.confrelid) || [];
-      referencedRelationForeignKeys.push(fk);
-      foreignKeysByReferencedRelation.set(fk.confrelid, referencedRelationForeignKeys);
-    });
-    
-    // Return foreign keys in the same order as requested referenced relation OIDs
-    return referencedRelationOids.map(oid => foreignKeysByReferencedRelation.get(oid) || []);
-  });
+  const foreignKeysByReferencedRelationLoader = new DataLoader<number, PgForeignKey[]>(
+    async (referencedRelationOids) => {
+      const foreignKeys = await foreignKeyQueries.query(client, {
+        referencedRelationOids: [...referencedRelationOids],
+      });
+
+      // Group foreign keys by referenced relation OID
+      const foreignKeysByReferencedRelation = new Map<number, PgForeignKey[]>();
+      referencedRelationOids.forEach((oid) => foreignKeysByReferencedRelation.set(oid, []));
+
+      foreignKeys.forEach((fk) => {
+        const referencedRelationForeignKeys =
+          foreignKeysByReferencedRelation.get(fk.confrelid) || [];
+        referencedRelationForeignKeys.push(fk);
+        foreignKeysByReferencedRelation.set(fk.confrelid, referencedRelationForeignKeys);
+      });
+
+      // Return foreign keys in the same order as requested referenced relation OIDs
+      return referencedRelationOids.map((oid) => foreignKeysByReferencedRelation.get(oid) || []);
+    }
+  );
 
   /**
    * Function to get all foreign keys with optional filtering
    */
-  const getAllForeignKeys = async (filter?: (fk: PgForeignKey) => boolean): Promise<PgForeignKey[]> => {
+  const getAllForeignKeys = async (
+    filter?: (fk: PgForeignKey) => boolean
+  ): Promise<PgForeignKey[]> => {
     const foreignKeys = await foreignKeyQueries.query(client);
     return filter ? foreignKeys.filter(filter) : foreignKeys;
   };
@@ -191,4 +214,4 @@ export function createForeignKeyLoaders(client: pg.Client | pg.PoolClient) {
     foreignKeysByReferencedRelationLoader,
     getAllForeignKeys,
   };
-} 
+}

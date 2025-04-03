@@ -50,12 +50,14 @@ export const indexQueries = {
 
     // Exclude system schemas unless specifically included
     if (!includeSystemSchemas) {
-      conditions.push(`n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')`);
+      conditions.push(
+        `n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')`
+      );
     }
 
     // Build and execute the SQL query
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    
+
     const result = await client.query(
       `
       SELECT
@@ -91,7 +93,7 @@ export const indexQueries = {
    */
   async byRelationOid(client: pg.Client | pg.PoolClient, relationOid: number): Promise<PgIndex[]> {
     return this.query(client, { relationOids: [relationOid] });
-  }
+  },
 };
 
 /**
@@ -105,15 +107,15 @@ export function createIndexLoaders(client: pg.Client | pg.PoolClient) {
    */
   const indexLoader = new DataLoader<number, PgIndex | null>(async (oids) => {
     const indexes = await indexQueries.query(client, { indexOids: [...oids] });
-    
+
     // Create a map for fast lookup by OID
     const indexMap = new Map<number, PgIndex>();
-    indexes.forEach(index => {
+    indexes.forEach((index) => {
       indexMap.set(index.indexrelid, index);
     });
-    
+
     // Return indexes in the same order as requested OIDs
-    return oids.map(oid => indexMap.get(oid) || null);
+    return oids.map((oid) => indexMap.get(oid) || null);
   });
 
   /**
@@ -121,19 +123,19 @@ export function createIndexLoaders(client: pg.Client | pg.PoolClient) {
    */
   const indexesByRelationLoader = new DataLoader<number, PgIndex[]>(async (relationOids) => {
     const indexes = await indexQueries.query(client, { relationOids: [...relationOids] });
-    
+
     // Group indexes by relation OID
     const indexesByRelation = new Map<number, PgIndex[]>();
-    relationOids.forEach(oid => indexesByRelation.set(oid, []));
-    
-    indexes.forEach(index => {
+    relationOids.forEach((oid) => indexesByRelation.set(oid, []));
+
+    indexes.forEach((index) => {
       const relationIndexes = indexesByRelation.get(index.indrelid) || [];
       relationIndexes.push(index);
       indexesByRelation.set(index.indrelid, relationIndexes);
     });
-    
+
     // Return indexes in the same order as requested relation OIDs
-    return relationOids.map(oid => indexesByRelation.get(oid) || []);
+    return relationOids.map((oid) => indexesByRelation.get(oid) || []);
   });
 
   /**
@@ -149,4 +151,4 @@ export function createIndexLoaders(client: pg.Client | pg.PoolClient) {
     indexesByRelationLoader,
     getAllIndexes,
   };
-} 
+}

@@ -75,7 +75,7 @@ export const roleQueries = {
   async byName(client: pg.Client | pg.PoolClient, name: string): Promise<PgRole | null> {
     const roles = await this.query(client, { roleNames: [name] });
     return roles.length > 0 ? roles[0] : null;
-  }
+  },
 };
 
 /**
@@ -89,15 +89,15 @@ export function createRoleLoaders(client: pg.Client | pg.PoolClient) {
    */
   const roleLoader = new DataLoader<number, PgRole | null>(async (oids) => {
     const roles = await roleQueries.query(client, { roleOids: [...oids] });
-    
+
     // Create a map for fast lookup by OID
     const roleMap = new Map<number, PgRole>();
-    roles.forEach(role => {
+    roles.forEach((role) => {
       roleMap.set(role.oid, role);
     });
-    
+
     // Return roles in the same order as requested OIDs
-    return oids.map(oid => roleMap.get(oid) || null);
+    return oids.map((oid) => roleMap.get(oid) || null);
   });
 
   /**
@@ -105,15 +105,15 @@ export function createRoleLoaders(client: pg.Client | pg.PoolClient) {
    */
   const roleByNameLoader = new DataLoader<string, PgRole | null>(async (names) => {
     const roles = await roleQueries.query(client, { roleNames: [...names] });
-    
+
     // Create a map for fast lookup by name
     const roleMap = new Map<string, PgRole>();
-    roles.forEach(role => {
+    roles.forEach((role) => {
       roleMap.set(role.rolname, role);
     });
-    
+
     // Return roles in the same order as requested names
-    return names.map(name => roleMap.get(name) || null);
+    return names.map((name) => roleMap.get(name) || null);
   });
 
   /**
@@ -129,4 +129,4 @@ export function createRoleLoaders(client: pg.Client | pg.PoolClient) {
     roleByNameLoader,
     getAllRoles,
   };
-} 
+}

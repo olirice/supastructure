@@ -76,12 +76,15 @@ export const enumQueries = {
     // Ensure enumlabels is always treated as an array
     return result.rows.map((row) => {
       // If enumlabels is a string (could happen with database driver parsing), convert it to array
-      if (typeof row.enumlabels === 'string') {
+      if (typeof row.enumlabels === "string") {
         try {
           // Parse the string if it's in a format like '{a,b,c}'
-          if (row.enumlabels.startsWith('{') && row.enumlabels.endsWith('}')) {
+          if (row.enumlabels.startsWith("{") && row.enumlabels.endsWith("}")) {
             // Remove the braces and split by comma
-            const parsed = row.enumlabels.slice(1, -1).split(',').map((s: string) => s.trim());
+            const parsed = row.enumlabels
+              .slice(1, -1)
+              .split(",")
+              .map((s: string) => s.trim());
             row.enumlabels = parsed;
           } else {
             // Fallback to single element array
@@ -95,7 +98,7 @@ export const enumQueries = {
         // If it's not a string and not an array, make it an empty array
         row.enumlabels = [];
       }
-      
+
       return PgEnumSchema.parse(row);
     });
   },
@@ -180,4 +183,4 @@ export function createEnumLoaders(client: Client | PoolClient) {
     enumByNameLoader,
     getAllEnums,
   };
-} 
+}

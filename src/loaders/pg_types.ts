@@ -180,4 +180,4 @@ export function createTypeLoaders(client: Client | PoolClient) {
     typeByNameLoader,
     getAllTypes,
   };
-} 
+}

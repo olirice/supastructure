@@ -1307,7 +1307,9 @@ export async function createSchema(): Promise<GraphQLSchema> {
         description: "Schema containing this type",
         resolve: async (type: PgType, _, context: ReqContext) => {
           // Only attempt to load if typnamespace is defined
-          return type.typnamespace !== undefined ? context.namespaceLoader.load(type.typnamespace) : null;
+          return type.typnamespace !== undefined
+            ? context.namespaceLoader.load(type.typnamespace)
+            : null;
         },
       },
     }),
@@ -1359,14 +1361,14 @@ export async function createSchema(): Promise<GraphQLSchema> {
     name: "Enum",
     description: "A PostgreSQL enum type",
     fields: () => ({
-      typeId: { 
-        type: GraphQLInt, 
+      typeId: {
+        type: GraphQLInt,
         description: "OID of the enum's type in the system catalog",
-        resolve: (enum_: PgEnum) => enum_.enumtypid 
+        resolve: (enum_: PgEnum) => enum_.enumtypid,
       },
-      labels: { 
-        type: new GraphQLList(GraphQLString), 
-        description: "Values in this enum type" 
+      labels: {
+        type: new GraphQLList(GraphQLString),
+        description: "Values in this enum type",
       },
       type: {
         type: dataTypeType,

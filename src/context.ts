@@ -14,16 +14,7 @@ import type {
   PgForeignKey,
 } from "./types.js";
 import { PgDatabaseSchema } from "./types.js";
-import { createNamespaceLoaders } from "./loaders/pg_namespaces.js";
-import { createClassLoaders } from "./loaders/pg_classes.js";
-import { createAttributeLoaders } from "./loaders/pg_attributes.js";
-import { createTriggerLoaders } from "./loaders/pg_triggers.js";
-import { createPolicyLoaders } from "./loaders/pg_policies.js";
-import { createTypeLoaders } from "./loaders/pg_types.js";
-import { createEnumLoaders } from "./loaders/pg_enums.js";
-import { createIndexLoaders } from "./loaders/pg_indexes.js";
-import { createRoleLoaders } from "./loaders/pg_roles.js";
-import { createForeignKeyLoaders } from "./loaders/pg_foreign_keys.js";
+import { createLoaders } from "./loaders.js";
 
 /**
  * Request context interface for GraphQL resolvers
@@ -135,14 +126,25 @@ export async function releaseClient(client: pg.Client | pg.PoolClient): Promise<
 }
 
 /**
+ * Type guard functions for data sources
+ */
+function hasDatabase(
+  ds: ReqContext["dataSources"]
+): ds is ReqContext["dataSources"] & { database: PgDatabase } {
+  return !!ds.database;
+}
+
+/**
  * Creates a request context with database client, data loaders, and resolver functions
  * @param dbConfig - Database connection configuration
  * @param existingClient - Optional existing database client to use instead of creating a new one
+ * @param loaderFactory - Factory function for creating data loaders (for testing)
  * @returns A request context object for GraphQL resolvers
  */
 export async function context(
   dbConfig: DbConfig,
-  existingClient?: pg.Client | pg.PoolClient
+  existingClient?: pg.Client | pg.PoolClient,
+  loaderFactory = createLoaders
 ): Promise<ReqContext> {
   const client = existingClient || new pg.Client(dbConfig);
   if (!existingClient) {
@@ -150,13 +152,14 @@ export async function context(
   }
 
   try {
-    // Create data sources object to cache results
-    const dataSources: ReqContext["dataSources"] = {};
+    // Create all loaders and resolvers using the factory
+    // This also provides a shared dataSources object that the resolvers will use
+    const { loaders, resolvers, dataSources } = loaderFactory(client);
 
     // Resolve database information
     const resolveDatabase = async () => {
-      if (dataSources.database) return dataSources.database;
-      
+      if (hasDatabase(dataSources)) return dataSources.database;
+
       const dbRow = await client.query(`
         select oid, datname
         from pg_catalog.pg_database
@@ -166,105 +169,16 @@ export async function context(
       return dataSources.database;
     };
 
-    // Create namespace loaders
-    const namespaceLoaders = createNamespaceLoaders(client);
-
-    // Create class loaders
-    const classLoaders = createClassLoaders(client);
-
-    // Create attribute loaders
-    const attributeLoaders = createAttributeLoaders(client);
-
-    // Create trigger loaders
-    const { triggerLoader, triggersByRelationLoader, getAllTriggers } =
-      createTriggerLoaders(client);
-
-    // Create policy loaders
-    const { policyLoader, policiesByRelationLoader, getAllPolicies } = createPolicyLoaders(client);
-    
-    // Create type loaders
-    const { typeLoader, typeByNameLoader, getAllTypes } = createTypeLoaders(client);
-    
-    // Create enum loaders
-    const { enumByTypeIdLoader, enumByNameLoader, getAllEnums } = createEnumLoaders(client);
-    
-    // Create index loaders
-    const { indexLoader, indexesByRelationLoader, getAllIndexes } = createIndexLoaders(client);
-    
-    // Create role loaders
-    const { roleLoader, roleByNameLoader, getAllRoles } = createRoleLoaders(client);
-    
-    // Create foreign key loaders
-    const { foreignKeyLoader, foreignKeysByRelationLoader, foreignKeysByReferencedRelationLoader, getAllForeignKeys } = 
-      createForeignKeyLoaders(client);
-
-    // Use namespace loaders to implement resolveNamespaces
-    const resolveNamespaces = namespaceLoaders.getAllNamespaces;
-
-    // Use class loaders to implement resolveClasses
-    const resolveClasses = classLoaders.getAllClasses;
-
-    // Use attribute loaders to implement resolveAttributes
-    const resolveAttributes = attributeLoaders.getAllAttributes;
-
-    // Use trigger loaders to implement resolveTriggers
-    const resolveTriggers = getAllTriggers;
-
-    // Use policy loaders to implement resolvePolicies
-    const resolvePolicies = getAllPolicies;
-    
-    // Use type loaders to implement resolveTypes
-    const resolveTypes = getAllTypes;
-    
-    // Use enum loaders to implement resolveEnums
-    const resolveEnums = getAllEnums;
-    
-    // Use index loaders to implement resolveIndexes
-    const resolveIndexes = getAllIndexes;
-    
-    // Use role loaders to implement resolveRoles
-    const resolveRoles = getAllRoles;
-    
-    // Use foreign key loaders to implement resolveForeignKeys
-    const resolveForeignKeys = getAllForeignKeys;
-
-    return {
+    // Return the complete context object with proper type assertions
+    const contextObj: ReqContext = {
       client,
       dataSources,
       resolveDatabase,
-      resolveNamespaces,
-      resolveClasses,
-      resolveAttributes,
-      resolveTriggers,
-      resolvePolicies,
-      resolveTypes,
-      resolveEnums,
-      resolveIndexes,
-      resolveRoles,
-      resolveForeignKeys,
-      typeLoader,
-      typeByNameLoader,
-      classLoader: classLoaders.classLoader,
-      classByNameLoader: classLoaders.classByNameLoader,
-      classesByNamespaceLoader: classLoaders.classesByNamespaceLoader,
-      attributesByRelationLoader: attributeLoaders.attributesByRelationLoader,
-      attributesByTableNameLoader: attributeLoaders.attributesByTableNameLoader,
-      triggerLoader,
-      triggersByRelationLoader,
-      policyLoader,
-      policiesByRelationLoader,
-      enumByTypeIdLoader,
-      enumByNameLoader,
-      indexLoader,
-      indexesByRelationLoader,
-      roleLoader,
-      roleByNameLoader,
-      foreignKeyLoader,
-      foreignKeysByRelationLoader,
-      foreignKeysByReferencedRelationLoader,
-      namespaceLoader: namespaceLoaders.namespaceLoader,
-      namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader,
+      ...resolvers,
+      ...loaders,
     };
+
+    return contextObj;
   } catch (err) {
     console.error("error loading data:", err);
     await releaseClient(client);
