@@ -10,6 +10,7 @@ describe("context", () => {
     expect(ctx.typeLoader).toBeDefined();
     expect(ctx.triggerLoader).toBeDefined();
     expect(ctx.policyLoader).toBeDefined();
+    expect(ctx.namespaceByNameLoader).toBeDefined();
     await releaseClient(ctx.client);
   });
   
@@ -106,6 +107,41 @@ describe("context", () => {
     // Verify only one query was executed
     expect(mockClient.query).toHaveBeenCalledTimes(1);
     expect(mockClient.query.mock.calls[0][1][0]).toContain(2000);
+  });
+
+  it("should batch namespace lookups by name with DataLoader", async () => {
+    const mockClient = {
+      query: jest.fn().mockResolvedValue({
+        rows: [
+          { oid: 301, nspname: "public", nspowner: 10 },
+          { oid: 302, nspname: "auth", nspowner: 10 }
+        ]
+      }),
+      release: jest.fn(),
+      connect: jest.fn(),
+      end: jest.fn(),
+    } as any;
+    
+    const ctx = await context(dbConfig, mockClient);
+    
+    // Load multiple namespaces in parallel by name
+    const [ns1Promise, ns2Promise] = [
+      ctx.namespaceByNameLoader.load("public"),
+      ctx.namespaceByNameLoader.load("auth")
+    ];
+    
+    const [ns1, ns2] = await Promise.all([ns1Promise, ns2Promise]);
+    
+    // Verify namespaces were loaded correctly
+    expect(ns1).toHaveProperty("oid", 301);
+    expect(ns1).toHaveProperty("nspname", "public");
+    expect(ns2).toHaveProperty("oid", 302);
+    expect(ns2).toHaveProperty("nspname", "auth");
+    
+    // Verify only one query was executed for both namespaces
+    expect(mockClient.query).toHaveBeenCalledTimes(1);
+    expect(mockClient.query.mock.calls[0][1][0]).toContain("public");
+    expect(mockClient.query.mock.calls[0][1][0]).toContain("auth");
   });
 
   it("should handle errors during context creation", async () => {

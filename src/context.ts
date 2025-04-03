@@ -24,6 +24,24 @@ import {
 } from "./types.js";
 import pg from "pg";
 import DataLoader from "dataloader";
+import { createNamespaceLoaders } from "./loaders/pg_namespaces.js";
+
+/**
+ * Helper functions for parsing database rows into typed objects
+ */
+function parseTypeRow(row: any): PgType & { typnamespace?: number, nspname?: string } {
+  // Apply zod schema validation for the base fields
+  const baseType = PgTypeSchema.parse(row);
+  
+  // Add additional fields that may be needed by resolvers
+  return {
+    ...baseType,
+    typbasetype: row.typbasetype,
+    typelem: row.typelem,
+    typnamespace: row.typnamespace,
+    nspname: row.nspname
+  };
+}
 
 /**
  * Database query functions for PostgreSQL metadata
@@ -39,35 +57,6 @@ export const queries = {
       where datname = current_database()
     `);
     return PgDatabaseSchema.parse(dbRow.rows[0]);
-  },
-
-  // Namespace/schema queries
-  async namespaces(client: pg.Client | pg.PoolClient): Promise<PgNamespace[]> {
-    const nsRows = await client.query(`
-      select oid, nspname, nspowner
-      from pg_catalog.pg_namespace
-      where nspname not in ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')
-      order by nspname asc
-    `);
-    return nsRows.rows.map((r) => PgNamespaceSchema.parse(r));
-  },
-
-  async namespaceByOid(client: pg.Client | pg.PoolClient, oid: number): Promise<PgNamespace | null> {
-    const result = await client.query(`
-      select oid, nspname, nspowner
-      from pg_catalog.pg_namespace
-      where oid = $1
-    `, [oid]);
-    return result.rows.length ? PgNamespaceSchema.parse(result.rows[0]) : null;
-  },
-
-  async namespaceByName(client: pg.Client | pg.PoolClient, name: string): Promise<PgNamespace | null> {
-    const result = await client.query(`
-      select oid, nspname, nspowner
-      from pg_catalog.pg_namespace
-      where nspname = $1
-    `, [name]);
-    return result.rows.length ? PgNamespaceSchema.parse(result.rows[0]) : null;
   },
 
   // Class/table/view queries
@@ -87,44 +76,6 @@ export const queries = {
       order by n.nspname, c.relname
     `);
     return classRows.rows.map((r) => PgClassSchema.parse(r));
-  },
-
-  async classByOid(client: pg.Client | pg.PoolClient, oid: number): Promise<PgClass | null> {
-    const result = await client.query(`
-      select
-        c.oid,
-        c.relname,
-        c.relnamespace,
-        c.relkind,
-        c.relispopulated,
-        c.relrowsecurity,
-        n.nspname
-      from pg_catalog.pg_class c
-      join pg_catalog.pg_namespace n on c.relnamespace = n.oid
-      where c.oid = $1
-    `, [oid]);
-    return result.rows.length ? PgClassSchema.parse(result.rows[0]) : null;
-  },
-
-  async classByNameAndSchema(
-    client: pg.Client | pg.PoolClient, 
-    schemaName: string, 
-    className: string
-  ): Promise<PgClass | null> {
-    const result = await client.query(`
-      select
-        c.oid,
-        c.relname,
-        c.relnamespace,
-        c.relkind,
-        c.relispopulated,
-        c.relrowsecurity,
-        n.nspname
-      from pg_catalog.pg_class c
-      join pg_catalog.pg_namespace n on c.relnamespace = n.oid
-      where n.nspname = $1 and c.relname = $2
-    `, [schemaName, className]);
-    return result.rows.length ? PgClassSchema.parse(result.rows[0]) : null;
   },
 
   // Attribute/column queries
@@ -404,6 +355,7 @@ export interface ReqContext {
    */
   typeLoader: DataLoader<number, PgType | null>;
   namespaceLoader: DataLoader<number, PgNamespace | null>;
+  namespaceByNameLoader: DataLoader<string, PgNamespace | null>;
   classLoader: DataLoader<number, PgClass | null>;
   attributeLoader: DataLoader<number, PgAttribute[] | null>;
   triggerLoader: DataLoader<number, PgTrigger[] | null>;
@@ -415,7 +367,6 @@ export interface ReqContext {
    */
   dataSources: {
     database?: PgDatabase;
-    namespaces?: PgNamespace[];
     classes?: PgClass[];
     attributes?: PgAttribute[];
     triggers?: PgTrigger[];
@@ -486,12 +437,11 @@ export async function context(
       return dataSources.database;
     };
     
-    const resolveNamespaces = async (filter?: (ns: PgNamespace) => boolean) => {
-      if (!dataSources.namespaces) {
-        dataSources.namespaces = await queries.namespaces(client);
-      }
-      return filter ? dataSources.namespaces.filter(filter) : dataSources.namespaces;
-    };
+    // Create namespace loaders
+    const namespaceLoaders = createNamespaceLoaders(client);
+    
+    // Use namespace loaders to implement resolveNamespaces
+    const resolveNamespaces = namespaceLoaders.getAllNamespaces;
     
     const resolveClasses = async (filter?: (cls: PgClass) => boolean) => {
       if (!dataSources.classes) {
@@ -558,15 +508,14 @@ export async function context(
     
     // Create DataLoader for types
     const typeLoader = new DataLoader<number, PgType | null>(async (typeOids) => {
-      // Get unique OIDs to avoid duplicate queries
       const uniqueOids = [...new Set(typeOids)];
       
-      // Fetch all types in a single query
       const result = await client.query(`
-        SELECT
-          t.oid,
-          t.typname,
-          t.typtype,
+        SELECT 
+          t.oid, 
+          t.typname, 
+          t.typnamespace, 
+          t.typtype, 
           t.typbasetype,
           t.typelem,
           t.typrelid,
@@ -576,34 +525,13 @@ export async function context(
         WHERE t.oid = ANY($1)
       `, [uniqueOids]);
       
-      // Create a map for quick lookup
       const typeMap = new Map<number, PgType>();
       result.rows.forEach(row => {
-        const type = PgTypeSchema.parse(row);
+        const type = parseTypeRow(row);
         typeMap.set(type.oid, type);
       });
       
-      // Return types in the same order as the input keys
       return typeOids.map(oid => typeMap.get(oid) || null);
-    });
-    
-    // Create DataLoader for namespaces
-    const namespaceLoader = new DataLoader<number, PgNamespace | null>(async (namespaceOids) => {
-      const uniqueOids = [...new Set(namespaceOids)];
-      
-      const result = await client.query(`
-        SELECT oid, nspname, nspowner
-        FROM pg_catalog.pg_namespace
-        WHERE oid = ANY($1)
-      `, [uniqueOids]);
-      
-      const namespaceMap = new Map<number, PgNamespace>();
-      result.rows.forEach(row => {
-        const namespace = PgNamespaceSchema.parse(row);
-        namespaceMap.set(namespace.oid, namespace);
-      });
-      
-      return namespaceOids.map(oid => namespaceMap.get(oid) || null);
     });
     
     // Create DataLoader for classes (tables, views, etc.)
@@ -632,7 +560,7 @@ export async function context(
       
       return classOids.map(oid => classMap.get(oid) || null);
     });
-    
+
     // Create DataLoader for attributes (columns) by relation OID
     const attributeLoader = new DataLoader<number, PgAttribute[] | null>(async (relationOids) => {
       const uniqueOids = [...new Set(relationOids)];
@@ -643,40 +571,56 @@ export async function context(
           a.attname,
           a.atttypid,
           a.attnum,
-          a.attnotnull
+          a.attnotnull,
+          a.atthasdef,
+          a.attidentity,
+          pg_catalog.pg_get_expr(d.adbin, d.adrelid) as adsrc,
+          t.typname,
+          t.typnamespace,
+          t.typtype,
+          t.typrelid,
+          n.nspname as typnspname
         FROM pg_catalog.pg_attribute a
+        LEFT JOIN pg_catalog.pg_attrdef d ON (a.attrelid = d.adrelid AND a.attnum = d.adnum)
+        JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
+        JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
         WHERE a.attrelid = ANY($1)
-          AND a.attnum >= 1
-          AND NOT a.attisdropped
-        ORDER BY a.attrelid, a.attnum
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+        ORDER BY a.attnum
       `, [uniqueOids]);
       
       // Group attributes by relation OID
-      const attributeMap = new Map<number, PgAttribute[]>();
+      const attrMap = new Map<number, PgAttribute[]>();
       result.rows.forEach(row => {
         const attr = PgAttributeSchema.parse(row);
-        if (!attributeMap.has(attr.attrelid)) {
-          attributeMap.set(attr.attrelid, []);
+        if (!attrMap.has(attr.attrelid)) {
+          attrMap.set(attr.attrelid, []);
         }
-        attributeMap.get(attr.attrelid)!.push(attr);
+        attrMap.get(attr.attrelid)!.push(attr);
       });
       
-      return relationOids.map(oid => attributeMap.get(oid) || null);
+      return relationOids.map(oid => attrMap.get(oid) || null);
     });
     
-    // Create DataLoader for triggers by table OID
+    // Create DataLoader for triggers by relation OID
     const triggerLoader = new DataLoader<number, PgTrigger[] | null>(async (tableOids) => {
       const uniqueOids = [...new Set(tableOids)];
       
       const result = await client.query(`
         SELECT
           t.oid,
+          t.tgrelid,
           t.tgname,
-          t.tgrelid
+          pg_catalog.pg_get_triggerdef(t.oid) as tgdef,
+          c.relname,
+          c.relnamespace,
+          n.nspname
         FROM pg_catalog.pg_trigger t
+        JOIN pg_catalog.pg_class c ON t.tgrelid = c.oid
+        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
         WHERE t.tgrelid = ANY($1)
-          AND NOT t.tgisinternal
-        ORDER BY t.tgrelid, t.tgname
+        AND NOT t.tgisinternal
       `, [uniqueOids]);
       
       // Group triggers by table OID
@@ -692,30 +636,27 @@ export async function context(
       return tableOids.map(oid => triggerMap.get(oid) || null);
     });
     
-    // Create DataLoader for policies by table OID
+    // Create DataLoader for policies by relation OID
     const policyLoader = new DataLoader<number, PgPolicy[] | null>(async (tableOids) => {
       const uniqueOids = [...new Set(tableOids)];
       
       const result = await client.query(`
         SELECT
           p.oid,
-          p.polname,
           p.polrelid,
+          p.polname,
           p.polcmd,
-          coalesce(array_agg(r.rolname::text) filter (where r.rolname is not null), '{}') as polroles,
-          pg_get_expr(p.polqual, p.polrelid) as polqual,
-          pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck
+          p.polpermissive,
+          pg_catalog.pg_get_expr(p.polqual, p.polrelid) as polqual,
+          pg_catalog.pg_get_expr(p.polwithcheck, p.polrelid) as polwithcheck,
+          array_to_string(p.polroles::name[], ',') as polroles,
+          c.relname,
+          c.relnamespace,
+          n.nspname
         FROM pg_catalog.pg_policy p
-        LEFT JOIN pg_catalog.pg_roles r ON r.oid = ANY(p.polroles)
+        JOIN pg_catalog.pg_class c ON p.polrelid = c.oid
+        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
         WHERE p.polrelid = ANY($1)
-        GROUP BY
-          p.oid,
-          p.polname,
-          p.polrelid,
-          p.polcmd,
-          p.polqual,
-          p.polwithcheck
-        ORDER BY p.polrelid, p.polname
       `, [uniqueOids]);
       
       // Group policies by table OID
@@ -745,7 +686,8 @@ export async function context(
       resolveRoles,
       resolveForeignKeys,
       typeLoader,
-      namespaceLoader,
+      namespaceLoader: namespaceLoaders.namespaceLoader,
+      namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader,
       classLoader,
       attributeLoader,
       triggerLoader,

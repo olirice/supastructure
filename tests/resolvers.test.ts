@@ -5,7 +5,7 @@ import DataLoader from "dataloader";
 
 function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
   const database = { oid: 1, datname: "test_db" };
-  const namespaces: any[] = [];
+  const namespaces: PgNamespace[] = [];
   const classes: any[] = [];
   const attributes: any[] = [];
   const policies: any[] = [];
@@ -18,7 +18,6 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
   
   const dataSources = {
     database,
-    namespaces,
     classes,
     attributes,
     policies,
@@ -41,6 +40,13 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
   const namespaceLoader = new DataLoader<number, PgNamespace | null>(async (keys) => {
     return keys.map(key => {
       const namespace = namespaces.find(n => n.oid === key);
+      return namespace || null;
+    });
+  });
+  
+  const namespaceByNameLoader = new DataLoader<string, PgNamespace | null>(async (keys) => {
+    return keys.map(key => {
+      const namespace = namespaces.find(n => n.nspname === key);
       return namespace || null;
     });
   });
@@ -97,6 +103,7 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
       Promise.resolve(filter ? foreignKeys.filter(filter) : foreignKeys)),
     typeLoader,
     namespaceLoader,
+    namespaceByNameLoader,
     classLoader,
     attributeLoader,
     triggerLoader,
@@ -119,7 +126,11 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
 describe("Resolvers with null branches", () => {
   test("Table resolver returns null for non-existent schema", async () => {
     const ctx = createTestContext();
-    ctx.dataSources.namespaces = [{ oid: 1, nspname: "public" }];
+    const namespaces = [{ oid: 1, nspname: "public" }];
+    (ctx.resolveNamespaces as any).mockResolvedValue(namespaces);
+    ctx.namespaceLoader.prime(1, namespaces[0]);
+    ctx.namespaceByNameLoader.prime("public", namespaces[0]);
+    
     ctx.dataSources.classes = [{ oid: 123, relname: "test_table", relnamespace: 2, relkind: "r", relrowsecurity: false }];
 
     const result = await resolvers.Table.schema(
@@ -133,7 +144,11 @@ describe("Resolvers with null branches", () => {
 
   test("View resolver returns null for non-existent schema", async () => {
     const ctx = createTestContext();
-    ctx.dataSources.namespaces = [{ oid: 1, nspname: "public" }];
+    const namespaces = [{ oid: 1, nspname: "public" }];
+    (ctx.resolveNamespaces as any).mockResolvedValue(namespaces);
+    ctx.namespaceLoader.prime(1, namespaces[0]);
+    ctx.namespaceByNameLoader.prime("public", namespaces[0]);
+    
     ctx.dataSources.classes = [{ oid: 123, relname: "test_view", relnamespace: 2, relkind: "v", relrowsecurity: false }];
 
     const result = await resolvers.View.schema(
@@ -147,7 +162,11 @@ describe("Resolvers with null branches", () => {
 
   test("MaterializedView resolver returns null for non-existent schema", async () => {
     const ctx = createTestContext();
-    ctx.dataSources.namespaces = [{ oid: 1, nspname: "public" }];
+    const namespaces = [{ oid: 1, nspname: "public" }];
+    (ctx.resolveNamespaces as any).mockResolvedValue(namespaces);
+    ctx.namespaceLoader.prime(1, namespaces[0]);
+    ctx.namespaceByNameLoader.prime("public", namespaces[0]);
+    
     ctx.dataSources.classes = [{ oid: 123, relname: "test_matview", relnamespace: 2, relkind: "m", relrowsecurity: false }];
 
     const result = await resolvers.MaterializedView.schema(
@@ -161,7 +180,11 @@ describe("Resolvers with null branches", () => {
 
   test("Index resolver returns null for non-existent schema", async () => {
     const ctx = createTestContext();
-    ctx.dataSources.namespaces = [{ oid: 1, nspname: "public" }];
+    const namespaces = [{ oid: 1, nspname: "public" }];
+    (ctx.resolveNamespaces as any).mockResolvedValue(namespaces);
+    ctx.namespaceLoader.prime(1, namespaces[0]);
+    ctx.namespaceByNameLoader.prime("public", namespaces[0]);
+    
     ctx.dataSources.classes = [{ oid: 123, relname: "test_index", relnamespace: 2, relkind: "i", relrowsecurity: false }];
 
     const result = await resolvers.Index.schema(

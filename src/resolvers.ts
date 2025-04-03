@@ -21,6 +21,10 @@ import {
   paginate,
   limitPageSize,
 } from "./generic.js";
+import util from "util";
+import { z } from 'zod';
+import { PgTypeSchema } from "./types.js";
+
 export const resolvers = {
   Query: {
     database: async (
@@ -39,13 +43,13 @@ export const resolvers = {
     ): Promise<PgNamespace | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Schema") {
-        return await queries.namespaceByOid(ctx.client, fromId.oid);
+        return ctx.namespaceLoader.load(fromId.oid);
       }
       if (args.oid) {
-        return await queries.namespaceByOid(ctx.client, args.oid);
+        return ctx.namespaceLoader.load(args.oid);
       }
       if (args.schemaName) {
-        return await queries.namespaceByName(ctx.client, args.schemaName);
+        return ctx.namespaceByNameLoader.load(args.schemaName);
       }
       return null;
     },
@@ -57,16 +61,26 @@ export const resolvers = {
     ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Table") {
-        const result = await queries.classByOid(ctx.client, fromId.oid);
+        const result = await ctx.classLoader.load(fromId.oid);
         return result?.relkind === 'r' ? result : null;
       }
       if (args.oid) {
-        const result = await queries.classByOid(ctx.client, args.oid);
+        const result = await ctx.classLoader.load(args.oid);
         return result?.relkind === 'r' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
-        return result?.relkind === 'r' ? result : null;
+        // First get the namespace by name
+        const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
+        if (!namespace) return null;
+        
+        // Then find the class by name and namespace
+        const classes = await ctx.resolveClasses();
+        const match = classes.find(c => 
+          c.relnamespace === namespace.oid && 
+          c.relname === args.name && 
+          c.relkind === 'r'
+        );
+        return match || null;
       }
       return null;
     },
@@ -78,16 +92,26 @@ export const resolvers = {
     ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "View") {
-        const result = await queries.classByOid(ctx.client, fromId.oid);
+        const result = await ctx.classLoader.load(fromId.oid);
         return result?.relkind === 'v' ? result : null;
       }
       if (args.oid) {
-        const result = await queries.classByOid(ctx.client, args.oid);
+        const result = await ctx.classLoader.load(args.oid);
         return result?.relkind === 'v' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
-        return result?.relkind === 'v' ? result : null;
+        // First get the namespace by name
+        const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
+        if (!namespace) return null;
+        
+        // Then find the class by name and namespace
+        const classes = await ctx.resolveClasses();
+        const match = classes.find(c => 
+          c.relnamespace === namespace.oid && 
+          c.relname === args.name && 
+          c.relkind === 'v'
+        );
+        return match || null;
       }
       return null;
     },
@@ -99,16 +123,26 @@ export const resolvers = {
     ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "MaterializedView") {
-        const result = await queries.classByOid(ctx.client, fromId.oid);
+        const result = await ctx.classLoader.load(fromId.oid);
         return result?.relkind === 'm' ? result : null;
       }
       if (args.oid) {
-        const result = await queries.classByOid(ctx.client, args.oid);
+        const result = await ctx.classLoader.load(args.oid);
         return result?.relkind === 'm' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
-        return result?.relkind === 'm' ? result : null;
+        // First get the namespace by name
+        const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
+        if (!namespace) return null;
+        
+        // Then find the class by name and namespace
+        const classes = await ctx.resolveClasses();
+        const match = classes.find(c => 
+          c.relnamespace === namespace.oid && 
+          c.relname === args.name && 
+          c.relkind === 'm'
+        );
+        return match || null;
       }
       return null;
     },
@@ -120,16 +154,26 @@ export const resolvers = {
     ): Promise<PgClass | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Index") {
-        const result = await queries.classByOid(ctx.client, fromId.oid);
+        const result = await ctx.classLoader.load(fromId.oid);
         return result?.relkind === 'i' ? result : null;
       }
       if (args.oid) {
-        const result = await queries.classByOid(ctx.client, args.oid);
+        const result = await ctx.classLoader.load(args.oid);
         return result?.relkind === 'i' ? result : null;
       }
       if (args.schemaName && args.name) {
-        const result = await queries.classByNameAndSchema(ctx.client, args.schemaName, args.name);
-        return result?.relkind === 'i' ? result : null;
+        // First get the namespace by name
+        const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
+        if (!namespace) return null;
+        
+        // Then find the class by name and namespace
+        const classes = await ctx.resolveClasses();
+        const match = classes.find(c => 
+          c.relnamespace === namespace.oid && 
+          c.relname === args.name && 
+          c.relkind === 'i'
+        );
+        return match || null;
       }
       return null;
     },
@@ -141,13 +185,33 @@ export const resolvers = {
     ): Promise<PgTrigger | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "Trigger") {
-        return await queries.triggerByOid(ctx.client, fromId.oid);
+        // Search for trigger by oid
+        const triggers = await ctx.resolveTriggers(t => t.oid === fromId.oid);
+        return triggers.length > 0 ? triggers[0] : null;
       }
       if (args.oid) {
-        return await queries.triggerByOid(ctx.client, args.oid);
+        // Search for trigger by oid
+        const triggers = await ctx.resolveTriggers(t => t.oid === args.oid);
+        return triggers.length > 0 ? triggers[0] : null;
       }
       if (args.schemaName && args.name) {
-        return await queries.triggersByNameAndSchema(ctx.client, args.schemaName, args.name);
+        // First get the namespace by name
+        const namespace = await ctx.namespaceByNameLoader.load(args.schemaName);
+        if (!namespace) return null;
+        
+        // Then find all triggers by name in this schema
+        const triggers = await ctx.resolveTriggers();
+        const classes = await ctx.resolveClasses();
+        
+        // Find the trigger that belongs to a table in the specified schema
+        const match = triggers.find(t => {
+          const cls = classes.find(c => c.oid === t.tgrelid);
+          return cls && 
+                 cls.relnamespace === namespace.oid && 
+                 t.tgname === args.name;
+        });
+        
+        return match || null;
       }
       return null;
     },
@@ -163,8 +227,7 @@ export const resolvers = {
         return singleResultOrError(policies, "Policy");
       }
       if (args.schemaName && args.name) {
-        const namespaces = await ctx.resolveNamespaces(s => s.nspname === args.schemaName);
-        const ns = namespaces.length > 0 ? namespaces[0] : null;
+        const ns = await ctx.namespaceByNameLoader.load(args.schemaName);
         if (!ns) return null;
         
         const classes = await ctx.resolveClasses();
@@ -187,13 +250,29 @@ export const resolvers = {
     ): Promise<PgType | null> => {
       const fromId = args.id ? decodeId(args.id) : null;
       if (fromId && fromId.typeName === "PgType") {
-        return await queries.typeByOid(ctx.client, fromId.oid);
+        return ctx.typeLoader.load(fromId.oid);
       }
       if (args.oid) {
-        return await queries.typeByOid(ctx.client, args.oid);
+        return ctx.typeLoader.load(args.oid);
       }
       if (args.schemaName && args.name) {
-        return await queries.typeByNameAndSchema(ctx.client, args.schemaName, args.name);
+        // Execute a query to find a type by name and schema
+        const result = await ctx.client.query(`
+          SELECT 
+            t.oid, 
+            t.typname, 
+            t.typtype, 
+            t.typbasetype, 
+            t.typelem, 
+            t.typrelid,
+            t.typnamespace,
+            n.nspname
+          FROM pg_catalog.pg_type t
+          JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
+          WHERE n.nspname = $1 AND t.typname = $2
+        `, [args.schemaName, args.name]);
+        
+        return result.rows.length ? parseDbType(result.rows[0]) : null;
       }
       return null;
     },
@@ -218,6 +297,8 @@ export const resolvers = {
 
     node: async (_p: unknown, args: { id: string }, ctx: ReqContext): Promise<any> => {
       const info = decodeId(args.id);
+      console.log("Node query for:", info);
+      
       switch (info.typeName) {
         case "Database": {
           const database = await ctx.resolveDatabase();
@@ -256,8 +337,55 @@ export const resolvers = {
           return policies.length > 0 ? policies[0] : null;
         }
         case "PgType": {
-          // Use DataLoader to batch and cache type lookups by OID
-          return ctx.typeLoader.load(info.oid);
+          console.log("Loading PgType node with oid:", info.oid);
+          
+          // Instead of using the DataLoader here, do a direct query to ensure we get full type info
+          // The failure seems to be with the GraphQL Node interface resolution
+          const result = await ctx.client.query(`
+            SELECT 
+              t.oid, 
+              t.typname, 
+              t.typtype, 
+              t.typbasetype, 
+              t.typelem, 
+              t.typrelid,
+              t.typnamespace,
+              n.nspname
+            FROM pg_catalog.pg_type t
+            JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
+            WHERE t.oid = $1
+          `, [info.oid]);
+          
+          if (result.rows.length === 0) {
+            console.log("No PgType found with oid:", info.oid);
+            return null;
+          }
+          
+          // Parse the type
+          const type = parseDbType(result.rows[0]);
+          console.log("Loaded PgType:", type);
+          
+          // Build the appropriate object based on the type kind
+          const kind = resolvePgType(type);
+          console.log("Resolved kind:", kind);
+          
+          // Build the ID string
+          const id = buildGlobalId("PgType", type.oid);
+          
+          // Return a specialized object with all the fields required by PgTypeInterface
+          return {
+            __typename: kind, // This helps GraphQL know which concrete type to use
+            id,
+            oid: type.oid,
+            name: type.typname,
+            kind: kind.replace('Type', '').toUpperCase(),
+            typtype: type.typtype,
+            typbasetype: type.typbasetype,
+            typelem: type.typelem,
+            typrelid: type.typrelid,
+            typnamespace: type.typnamespace,
+            nspname: type.nspname
+          };
         }
         case "Column": {
           // For columns, we need to get all attributes for a relation
@@ -685,7 +813,15 @@ export const resolvers = {
           return p.polcmd;
       }
     },
-    roles: (p: PgPolicy) => p.polroles || [],
+    roles: (p: PgPolicy) => {
+      // Handle the case where polroles might be a string (comma-separated values)
+      const roles = p.polroles as string[] | string | undefined;
+      
+      if (typeof roles === 'string') {
+        return roles.split(',').filter((r: string) => r.trim() !== '');
+      }
+      return roles || [];
+    },
     usingExpr: (p: PgPolicy) => p.polqual || null,
     withCheck: (p: PgPolicy) => p.polwithcheck || null,
   },
@@ -697,6 +833,18 @@ export const resolvers = {
 
   PgType: {
     __resolveType(obj: PgType) {
+      console.log("PgType __resolveType called with:", obj);
+      return resolvePgType(obj);
+    },
+  },
+
+  PgTypeInterface: {
+    __resolveType(obj: any) {
+      console.log("PgTypeInterface __resolveType called with:", obj);
+      // If we already have a __typename, use it directly
+      if (obj.__typename) {
+        return obj.__typename;
+      }
       return resolvePgType(obj);
     },
   },
@@ -714,6 +862,7 @@ export const resolvers = {
       return null;
     },
   },
+  
   EnumType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
@@ -724,6 +873,7 @@ export const resolvers = {
       return enums.length > 0 ? enums[0].enumlabels : [];
     },
   },
+  
   CompositeType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
@@ -746,6 +896,7 @@ export const resolvers = {
       }));
     },
   },
+  
   ArrayType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
@@ -759,12 +910,14 @@ export const resolvers = {
       return null;
     },
   },
+  
   ScalarType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
     name: (p: PgType) => p.typname,
     kind: () => "SCALAR",
   },
+  
   UnknownType: {
     id: (p: PgType) => buildGlobalId("PgType", p.oid),
     oid: (p: PgType) => p.oid,
@@ -772,11 +925,15 @@ export const resolvers = {
     kind: () => "UNKNOWN",
   },
 
-  ////////////////////////////////////////
-  // Node interface
-  ////////////////////////////////////////
   Node: {
     __resolveType(obj: any) {
+      console.log("Node __resolveType called with:", obj);
+      
+      // If we already have a __typename (used for PgTypes in the node resolver)
+      if (obj.__typename) {
+        return obj.__typename;
+      }
+      
       if (obj.datname) return "Database";
       if (obj.nspname) return "Schema";
       if (obj.relname && obj.relkind === "r") return "Table";
@@ -840,13 +997,20 @@ export const resolvers = {
 }
 
 function resolvePgType(obj: PgType): string {
-  if (obj.typtype === 'd') return 'DomainType';
-  if (obj.typtype === 'e') return 'EnumType'; 
-  if (obj.typtype === 'c') return 'CompositeType';
-  if (obj.typtype === 'b') {
+  console.log("Resolving PgType:", obj);
+  
+  const typtype = obj.typtype || ''; // Ensure typtype is a string
+  
+  if (typtype === 'd') return 'DomainType';
+  if (typtype === 'e') return 'EnumType'; 
+  if (typtype === 'c') return 'CompositeType';
+  if (typtype === 'b') {
+    // For array types, check if typelem exists and is not zero
     if (obj.typelem && obj.typelem !== 0) return 'ArrayType';
     return 'ScalarType';
   }
+  
+  // Default fallback
   return 'UnknownType';
 }
 
@@ -859,4 +1023,78 @@ function resolveForeignKeyAction(action: string): string {
     case 'd': return 'SET_DEFAULT';
     default: return 'NO_ACTION';
   }
+}
+
+export const pgNamespaceResolvers = {
+  // Field resolvers for PgNamespace (schema) objects
+  schema: (parent: PgNamespace) => parent.nspname,
+
+  tables: async (
+    parent: PgNamespace,
+    _args: any,
+    ctx: ReqContext
+  ): Promise<PgClass[]> => {
+    const classes = await ctx.resolveClasses();
+    return classes.filter(
+      (c) => c.relnamespace === parent.oid && (c.relkind === "r" || c.relkind === "p")
+    );
+  },
+
+  // ... other existing resolvers ...
+};
+
+export const queryResolvers = {
+  // ... existing resolvers ...
+
+  // GraphQL Query: schema(name: String!): PgNamespace
+  schema: async (
+    _parent: any,
+    args: { name: string },
+    ctx: ReqContext
+  ): Promise<PgNamespace | null> => {
+    return ctx.namespaceByNameLoader.load(args.name);
+  },
+
+  // GraphQL Query: schemas: [PgNamespace!]!
+  schemas: async (
+    _parent: any,
+    _args: any,
+    ctx: ReqContext
+  ): Promise<PgNamespace[]> => {
+    return ctx.resolveNamespaces();
+  },
+  
+  // ... other existing resolvers ...
+};
+
+// ... other resolvers ...
+
+export const tableResolvers = {
+  // ... existing resolvers ...
+
+  schema: async (
+    parent: PgClass,
+    _args: any,
+    ctx: ReqContext
+  ): Promise<PgNamespace | null> => {
+    return ctx.namespaceLoader.load(parent.relnamespace);
+  },
+  
+  // ... other existing resolvers ...
+};
+
+// ... other existing resolvers ...
+
+function parseDbType(row: any): PgType & { typnamespace?: number, nspname?: string } {
+  // Apply zod schema validation and transformation
+  const baseType = PgTypeSchema.parse(row);
+  
+  // Add additional fields if they exist in the row but not in the schema
+  return {
+    ...baseType,
+    typbasetype: row.typbasetype,
+    typelem: row.typelem,
+    typnamespace: row.typnamespace,
+    nspname: row.nspname
+  };
 }

@@ -44,7 +44,7 @@ export const PgPolicySchema = z.object({
   polname: z.string(),
   polrelid: z.number().int(),
   polcmd: z.string().optional(),
-  polroles: z.array(z.string()).optional(),
+  polroles: z.union([z.array(z.string()), z.string()]).optional(),
   polqual: z.string().nullable().optional(),
   polwithcheck: z.string().nullable().optional(),
 });
