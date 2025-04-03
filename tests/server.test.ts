@@ -4550,11 +4550,13 @@ describe("GraphQL Server - Transactional Tests", () => {
     // Create schemas
     await client.query("create schema source_schema;");
     await client.query("create schema target_schema;");
-    
+
     // Create tables for the test
-    await client.query("create table source_schema.source_table (id serial primary key, ref_id int);");
+    await client.query(
+      "create table source_schema.source_table (id serial primary key, ref_id int);"
+    );
     await client.query("create table target_schema.target_table (id serial primary key);");
-    
+
     // Create foreign key
     await client.query(`
       alter table source_schema.source_table 
@@ -4610,7 +4612,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toBeDefined();
     expect((data as any).table).toBeDefined();
     expect((data as any).table.foreignKeys.edges).toHaveLength(1);
-    
+
     const fk = (data as any).table.foreignKeys.edges[0].node;
     expect(fk).toMatchObject({
       name: "fk_test_constraint",
@@ -4618,15 +4620,15 @@ describe("GraphQL Server - Transactional Tests", () => {
       referencedTable: {
         name: "target_table",
         schema: {
-          name: "target_schema"
-        }
+          name: "target_schema",
+        },
       },
       columnMappings: [
         {
           referencingColumn: { name: "ref_id" },
-          referencedColumn: { name: "id" }
-        }
-      ]
+          referencedColumn: { name: "id" },
+        },
+      ],
     });
   });
 
@@ -4637,11 +4639,15 @@ describe("GraphQL Server - Transactional Tests", () => {
     // Create schemas and tables for the test
     await client.query("create schema ref_source_schema;");
     await client.query("create schema ref_target_schema;");
-    
+
     await client.query("create table ref_target_schema.target_table (id serial primary key);");
-    await client.query("create table ref_source_schema.source_table1 (id serial primary key, ref_id int);");
-    await client.query("create table ref_source_schema.source_table2 (id serial primary key, target_ref_id int);");
-    
+    await client.query(
+      "create table ref_source_schema.source_table1 (id serial primary key, ref_id int);"
+    );
+    await client.query(
+      "create table ref_source_schema.source_table2 (id serial primary key, target_ref_id int);"
+    );
+
     // Create foreign keys
     await client.query(`
       alter table ref_source_schema.source_table1 
@@ -4649,7 +4655,7 @@ describe("GraphQL Server - Transactional Tests", () => {
       foreign key (ref_id) 
       references ref_target_schema.target_table(id)
     `);
-    
+
     await client.query(`
       alter table ref_source_schema.source_table2 
       add constraint fk_test_ref2 
@@ -4704,41 +4710,41 @@ describe("GraphQL Server - Transactional Tests", () => {
     expect(data).toBeDefined();
     expect((data as any).table).toBeDefined();
     expect((data as any).table.referencedBy.edges).toHaveLength(2);
-    
+
     // Sort the edges by name for consistent testing
-    const edges = [...(data as any).table.referencedBy.edges].sort(
-      (a, b) => a.node.name.localeCompare(b.node.name)
+    const edges = [...(data as any).table.referencedBy.edges].sort((a, b) =>
+      a.node.name.localeCompare(b.node.name)
     );
-    
+
     // Verify the foreign keys details
     expect(edges[0].node).toMatchObject({
       name: "fk_test_ref1",
       table: {
         name: "source_table1",
         schema: {
-          name: "ref_source_schema"
-        }
+          name: "ref_source_schema",
+        },
       },
       columnMappings: [
         {
-          referencingColumn: { name: "ref_id" }
-        }
-      ]
+          referencingColumn: { name: "ref_id" },
+        },
+      ],
     });
-    
+
     expect(edges[1].node).toMatchObject({
       name: "fk_test_ref2",
       table: {
         name: "source_table2",
         schema: {
-          name: "ref_source_schema"
-        }
+          name: "ref_source_schema",
+        },
       },
       columnMappings: [
         {
-          referencingColumn: { name: "target_ref_id" }
-        }
-      ]
+          referencingColumn: { name: "target_ref_id" },
+        },
+      ],
     });
   });
 
@@ -4749,8 +4755,10 @@ describe("GraphQL Server - Transactional Tests", () => {
     // Create schema and tables
     await client.query("create schema fk_schema;");
     await client.query("create table fk_schema.parent_table (id serial primary key);");
-    await client.query("create table fk_schema.child_table (id serial primary key, parent_id int);");
-    
+    await client.query(
+      "create table fk_schema.child_table (id serial primary key, parent_id int);"
+    );
+
     // Create foreign key
     await client.query(`
       alter table fk_schema.child_table 
@@ -4760,7 +4768,7 @@ describe("GraphQL Server - Transactional Tests", () => {
       on update restrict
       on delete set null
     `);
-    
+
     // First, get the OID of the foreign key
     const oidQuery = await client.query(`
       SELECT c.oid 
@@ -4769,9 +4777,9 @@ describe("GraphQL Server - Transactional Tests", () => {
       WHERE c.conname = 'test_specific_fk'
       AND n.nspname = 'fk_schema'
     `);
-    
+
     const fkOid = oidQuery.rows[0].oid;
-    
+
     // Now query the GraphQL API using the ID
     const fkIdResult = await executeTestQuery(
       testServer,
@@ -4792,16 +4800,19 @@ describe("GraphQL Server - Transactional Tests", () => {
       {},
       client
     );
-    
+
     // Debug output to see what we're getting back
-    console.log('Foreign key query result:', JSON.stringify((fkIdResult.data as any)?.table?.foreignKeys?.edges, null, 2));
-    
+    console.log(
+      "Foreign key query result:",
+      JSON.stringify((fkIdResult.data as any)?.table?.foreignKeys?.edges, null, 2)
+    );
+
     // Make sure we have a foreign key
     expect((fkIdResult.data as any)?.table?.foreignKeys?.edges).toHaveLength(1);
-    
+
     const fkGlobalId = (fkIdResult.data as any).table.foreignKeys.edges[0].node.id;
     expect(fkGlobalId).toBeDefined();
-    
+
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4836,13 +4847,13 @@ describe("GraphQL Server - Transactional Tests", () => {
     );
 
     // Log the data for debugging
-    console.log('Node query result:', JSON.stringify(data, null, 2));
-    
+    console.log("Node query result:", JSON.stringify(data, null, 2));
+
     // Check if we got the correct result
     expect(errors).toBeUndefined();
     expect(data).toBeDefined();
     expect((data as any).node).toBeDefined();
-    
+
     // Only continue with assertions if node is not null
     if ((data as any).node) {
       expect((data as any).node).toMatchObject({
@@ -4851,17 +4862,17 @@ describe("GraphQL Server - Transactional Tests", () => {
         updateAction: "RESTRICT",
         deleteAction: "SET_NULL",
         table: {
-          name: "child_table"
+          name: "child_table",
         },
         referencedTable: {
-          name: "parent_table"
+          name: "parent_table",
         },
         columnMappings: [
           {
             referencingColumn: { name: "parent_id" },
-            referencedColumn: { name: "id" }
-          }
-        ]
+            referencedColumn: { name: "id" },
+          },
+        ],
       });
     }
   });

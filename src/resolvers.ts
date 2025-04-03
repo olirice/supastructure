@@ -299,7 +299,7 @@ export const resolvers = {
 
     node: async (_: any, { id }: { id: string }, context: ReqContext) => {
       const info = decodeId(id);
-      
+
       switch (info.typeName) {
         case "Database": {
           const database = await context.resolveDatabase();

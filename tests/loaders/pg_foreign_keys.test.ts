@@ -54,7 +54,7 @@ describe("pg_foreign_keys loader", () => {
 
   beforeEach(() => {
     client = new Client();
-    mockQuery = (client.query as jest.Mock);
+    mockQuery = client.query as jest.Mock;
     mockQuery.mockReset();
   });
 
@@ -69,10 +69,7 @@ describe("pg_foreign_keys loader", () => {
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual(mockForeignKey1);
       expect(result[1]).toEqual(mockForeignKey2);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("SELECT"),
-        []
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("SELECT"), []);
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining("pg_catalog.pg_constraint c"),
         []
@@ -88,10 +85,7 @@ describe("pg_foreign_keys loader", () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual(mockForeignKey1);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("c.oid = ANY($1)"),
-        [[1]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("c.oid = ANY($1)"), [[1]]);
     });
 
     it("queries foreign keys with relation OIDs filter", async () => {
@@ -102,10 +96,9 @@ describe("pg_foreign_keys loader", () => {
       const result = await foreignKeyQueries.query(client, { relationOids: [100] });
 
       expect(result).toHaveLength(2);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("c.conrelid = ANY($1)"),
-        [[100]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("c.conrelid = ANY($1)"), [
+        [100],
+      ]);
     });
 
     it("queries foreign keys with referenced relation OIDs filter", async () => {
@@ -116,10 +109,9 @@ describe("pg_foreign_keys loader", () => {
       const result = await foreignKeyQueries.query(client, { referencedRelationOids: [200] });
 
       expect(result).toHaveLength(2);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("c.confrelid = ANY($1)"),
-        [[200]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("c.confrelid = ANY($1)"), [
+        [200],
+      ]);
     });
 
     it("queries foreign keys with schema names filter", async () => {
@@ -130,10 +122,9 @@ describe("pg_foreign_keys loader", () => {
       const result = await foreignKeyQueries.query(client, { schemaNames: ["public"] });
 
       expect(result).toHaveLength(1);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("n.nspname = ANY($1)"),
-        [["public"]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("n.nspname = ANY($1)"), [
+        ["public"],
+      ]);
     });
 
     it("includes system schemas when specified", async () => {
@@ -159,10 +150,7 @@ describe("pg_foreign_keys loader", () => {
       const result = await foreignKeyQueries.byOid(client, 1);
       expect(result).not.toBeNull();
       expect(result).toEqual(mockForeignKey1);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("c.oid = ANY($1)"),
-        [[1]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("c.oid = ANY($1)"), [[1]]);
     });
 
     it("returns null when foreign key not found by OID", async () => {
@@ -179,10 +167,9 @@ describe("pg_foreign_keys loader", () => {
 
       const result = await foreignKeyQueries.byRelationOid(client, 100);
       expect(result).toHaveLength(2);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("c.conrelid = ANY($1)"),
-        [[100]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("c.conrelid = ANY($1)"), [
+        [100],
+      ]);
     });
 
     it("gets foreign keys by referenced relation OID", async () => {
@@ -192,10 +179,9 @@ describe("pg_foreign_keys loader", () => {
 
       const result = await foreignKeyQueries.byReferencedRelationOid(client, 200);
       expect(result).toHaveLength(2);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("c.confrelid = ANY($1)"),
-        [[200]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("c.confrelid = ANY($1)"), [
+        [200],
+      ]);
     });
   });
 
@@ -222,20 +208,14 @@ describe("pg_foreign_keys loader", () => {
       });
 
       const { foreignKeyLoader } = createForeignKeyLoaders(client);
-      const results = await Promise.all([
-        foreignKeyLoader.load(1),
-        foreignKeyLoader.load(2),
-      ]);
+      const results = await Promise.all([foreignKeyLoader.load(1), foreignKeyLoader.load(2)]);
 
       expect(results).toHaveLength(2);
       expect(results[0]).toEqual(mockForeignKey1);
       expect(results[1]).toEqual(mockForeignKey2);
       // Should be called only once for both loads
       expect(mockQuery).toHaveBeenCalledTimes(1);
-      expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("c.oid = ANY($1)"),
-        [[1, 2]]
-      );
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("c.oid = ANY($1)"), [[1, 2]]);
     });
 
     it("loads foreign keys by relation OID", async () => {
@@ -311,4 +291,4 @@ describe("pg_foreign_keys loader", () => {
       expect(result).not.toContainEqual(mockForeignKey3);
     });
   });
-}); 
+});

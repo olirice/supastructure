@@ -32,7 +32,7 @@ describe("pg_enums loader", () => {
 
   beforeEach(() => {
     client = new Client();
-    mockQuery = (client.query as jest.Mock);
+    mockQuery = client.query as jest.Mock;
     mockQuery.mockReset();
   });
 
@@ -60,7 +60,9 @@ describe("pg_enums loader", () => {
       });
       expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("SELECT"), []);
       expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining("AND n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')"),
+        expect.stringContaining(
+          "AND n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')"
+        ),
         []
       );
     });
@@ -80,7 +82,9 @@ describe("pg_enums loader", () => {
       const result = await enumQueries.query(client, { enumTypeIds: [1] });
 
       expect(result).toHaveLength(1);
-      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND e.enumtypid = ANY($1)"), [[1]]);
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND e.enumtypid = ANY($1)"), [
+        [1],
+      ]);
     });
 
     it("queries enums with schema name filter", async () => {
@@ -98,7 +102,9 @@ describe("pg_enums loader", () => {
       const result = await enumQueries.query(client, { schemaNames: ["public"] });
 
       expect(result).toHaveLength(1);
-      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND n.nspname = ANY($1)"), [["public"]]);
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND n.nspname = ANY($1)"), [
+        ["public"],
+      ]);
     });
 
     it("queries enums with enum name filter", async () => {
@@ -116,7 +122,9 @@ describe("pg_enums loader", () => {
       const result = await enumQueries.query(client, { enumNames: ["test_enum"] });
 
       expect(result).toHaveLength(1);
-      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND t.typname = ANY($1)"), [["test_enum"]]);
+      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND t.typname = ANY($1)"), [
+        ["test_enum"],
+      ]);
     });
 
     it("includes system schemas when all=true", async () => {
@@ -135,7 +143,9 @@ describe("pg_enums loader", () => {
 
       expect(result).toHaveLength(1);
       expect(mockQuery).not.toHaveBeenCalledWith(
-        expect.stringContaining("AND n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')"),
+        expect.stringContaining(
+          "AND n.nspname NOT IN ('pg_toast', 'pg_catalog', 'information_schema', 'pg_temp')"
+        ),
         []
       );
     });
@@ -257,7 +267,10 @@ describe("pg_enums loader", () => {
 
       expect(result).not.toBeNull();
       expect(result?.enumtypid).toBe(1);
-      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND e.enumtypid = ANY($1)"), expect.anything());
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining("AND e.enumtypid = ANY($1)"),
+        expect.anything()
+      );
     });
 
     it("loads enums by name", async () => {
@@ -277,7 +290,10 @@ describe("pg_enums loader", () => {
 
       expect(result).not.toBeNull();
       expect(result?.enumtypid).toBe(1);
-      expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("AND n.nspname = ANY($1)"), expect.anything());
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining("AND n.nspname = ANY($1)"),
+        expect.anything()
+      );
     });
 
     it("loads enums by name with proper field mapping", async () => {
@@ -351,4 +367,4 @@ describe("pg_enums loader", () => {
       expect(result[0].enumtypid).toBe(1);
     });
   });
-}); 
+});
