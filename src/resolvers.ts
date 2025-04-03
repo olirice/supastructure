@@ -297,80 +297,52 @@ export const resolvers = {
       return null;
     },
 
-    node: async (_p: unknown, args: { id: string }, ctx: ReqContext): Promise<any> => {
-      const info = decodeId(args.id);
-      console.log("Node query for:", info);
-
+    node: async (_: any, { id }: { id: string }, context: ReqContext) => {
+      const info = decodeId(id);
+      
       switch (info.typeName) {
         case "Database": {
-          const database = await ctx.resolveDatabase();
+          const database = await context.resolveDatabase();
           return database.oid === info.oid ? database : null;
         }
         case "Schema": {
           // Use DataLoader to batch and cache namespace lookups by OID
-          return ctx.namespaceLoader.load(info.oid);
+          return context.namespaceLoader.load(info.oid);
         }
         case "Table": {
           // Use DataLoader to batch and cache class lookups by OID
-          const cls = await ctx.classLoader.load(info.oid);
+          const cls = await context.classLoader.load(info.oid);
           return cls && cls.relkind === "r" ? cls : null;
         }
         case "View": {
           // Use DataLoader to batch and cache class lookups by OID
-          const cls = await ctx.classLoader.load(info.oid);
+          const cls = await context.classLoader.load(info.oid);
           return cls && cls.relkind === "v" ? cls : null;
         }
         case "MaterializedView": {
           // Use DataLoader to batch and cache class lookups by OID
-          const cls = await ctx.classLoader.load(info.oid);
+          const cls = await context.classLoader.load(info.oid);
           return cls && cls.relkind === "m" ? cls : null;
         }
         case "Index": {
           // Use DataLoader to batch and cache class lookups by OID
-          const cls = await ctx.classLoader.load(info.oid);
+          const cls = await context.classLoader.load(info.oid);
           return cls && cls.relkind === "i" ? cls : null;
         }
         case "Trigger": {
-          return ctx.triggerLoader.load(info.oid);
+          return context.triggerLoader.load(info.oid);
         }
         case "Policy": {
-          return ctx.policyLoader.load(info.oid);
+          return context.policyLoader.load(info.oid);
         }
         case "PgType": {
-          console.log("Loading PgType node with oid:", info.oid);
-
-          // Instead of using the DataLoader here, do a direct query to ensure we get full type info
-          // The failure seems to be with the GraphQL Node interface resolution
-          const result = await ctx.client.query(
-            `
-            SELECT 
-              t.oid, 
-              t.typname, 
-              t.typtype, 
-              t.typbasetype, 
-              t.typelem, 
-              t.typrelid,
-              t.typnamespace,
-              n.nspname
-            FROM pg_catalog.pg_type t
-            JOIN pg_catalog.pg_namespace n ON t.typnamespace = n.oid
-            WHERE t.oid = $1
-          `,
-            [info.oid]
-          );
-
-          if (result.rows.length === 0) {
-            console.log("No PgType found with oid:", info.oid);
+          const type = await context.typeLoader.load(info.oid);
+          if (!type) {
             return null;
           }
 
-          // Parse the type
-          const type = parseDbType(result.rows[0]);
-          console.log("Loaded PgType:", type);
-
           // Build the appropriate object based on the type kind
-          const kind = resolvePgType(type);
-          console.log("Resolved kind:", kind);
+          const kind = resolveTypeKind(type);
 
           // Return the type object directly - we already have all fields needed
           // This will be assigned the right __typename through the Node type resolver
@@ -385,11 +357,11 @@ export const resolvers = {
           // For columns, we need to get all attributes for a relation
           // and then find the specific one we're looking for
           // This is a bit different since we don't have a direct loader by column OID
-          const attributes = await ctx.resolveAttributes((a) => a.attrelid === info.oid);
+          const attributes = await context.resolveAttributes((a) => a.attrelid === info.oid);
           return attributes.length > 0 ? attributes[0] : null;
         }
         case "Role": {
-          const roles = await ctx.resolveRoles((r) => r.oid === info.oid);
+          const roles = await context.resolveRoles((r) => r.oid === info.oid);
           return roles.length > 0 ? roles[0] : null;
         }
         default:
@@ -870,19 +842,13 @@ export const resolvers = {
 
   PgType: {
     __resolveType(obj: PgType) {
-      console.log("PgType __resolveType called with:", obj);
-      return resolvePgType(obj);
+      return resolveTypeKind(obj);
     },
   },
 
   PgTypeInterface: {
-    __resolveType(obj: any) {
-      console.log("PgTypeInterface __resolveType called with:", obj);
-      // If we already have a __typename, use it directly
-      if (obj.__typename) {
-        return obj.__typename;
-      }
-      return resolvePgType(obj);
+    __resolveType(obj: PgType) {
+      return resolveTypeKind(obj);
     },
   },
 
@@ -918,7 +884,6 @@ export const resolvers = {
     kind: () => "COMPOSITE",
     fields: async (p: PgType, _args: any, ctx: ReqContext) => {
       if (!p.typrelid) {
-        console.warn(`Missing typrelid for composite type ${p.typname}`);
         return [];
       }
 
@@ -968,9 +933,6 @@ export const resolvers = {
 
   Node: {
     __resolveType(obj: any) {
-      console.log("Node __resolveType called with:", obj);
-
-      // If we already have a __typename (used for PgTypes in the node resolver)
       if (obj.__typename) {
         return obj.__typename;
       }
@@ -984,7 +946,7 @@ export const resolvers = {
       if (obj.tgname) return "Trigger";
       if (obj.polname) return "Policy";
       if (obj.typname !== undefined) {
-        return resolvePgType(obj);
+        return resolveTypeKind(obj);
       }
       if (obj.attrelid !== undefined && obj.attname !== undefined) {
         return "Column";
@@ -1055,9 +1017,7 @@ export const resolvers = {
   },
 };
 
-function resolvePgType(obj: PgType): string {
-  console.log("Resolving PgType:", obj);
-
+function resolveTypeKind(obj: PgType): string {
   const typtype = obj.typtype || ""; // Ensure typtype is a string
 
   if (typtype === "d") return "DomainType";

@@ -3529,9 +3529,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     const typeOid = result.rows[0].oid;
     const typeId = buildGlobalId("PgType", typeOid);
 
-    console.log("Type query result:", result.rows[0]);
-    console.log("Test type OID:", typeOid, "Type ID:", typeId);
-
     // First try the direct type query
     const directResult = await executeTestQuery(
       testServer,
@@ -3550,8 +3547,6 @@ describe("GraphQL Server - Transactional Tests", () => {
       { oid: typeOid },
       client
     );
-
-    console.log("Direct type query result:", directResult.data);
 
     // Then try the node query
     const nodeResult = await executeTestQuery(
@@ -3573,8 +3568,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     );
 
     const { data, errors } = nodeResult;
-    console.log("Node query errors:", errors);
-    console.log("Node query data:", data);
 
     expect(data).toMatchObject({
       node: expect.objectContaining({

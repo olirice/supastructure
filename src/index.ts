@@ -47,6 +47,6 @@ if (process.env.NODE_ENV !== "test") {
       context: () => context(dbConfig),
     });
 
-    console.log(`server ready at: ${url}`);
+    // console.log(`server ready at: ${url}`);
   })();
 }
