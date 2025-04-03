@@ -529,7 +529,10 @@ export const resolvers = {
     name: (p: PgNamespace) => p.nspname,
 
     tables: async (p: PgNamespace, args: any, ctx: ReqContext): Promise<any> => {
-      let items = await ctx.resolveClasses(c => c.relnamespace === p.oid && c.relkind === "r");
+      // Use the classesByNamespaceLoader to efficiently load tables
+      let items = await ctx.classesByNamespaceLoader.load({ namespaceOid: p.oid, relkind: "r" });
+      
+      // Apply sorting if needed
       if (args.orderBy?.field) {
         if (args.orderBy.field === "NAME") {
           sortItems(items, (x) => x.relname, args.orderBy.direction);
@@ -537,6 +540,8 @@ export const resolvers = {
           sortItems(items, (x) => x.oid, args.orderBy.direction);
         }
       }
+      
+      // Apply pagination
       return paginate(items, {
         first: args.first,
         after: args.after,
@@ -544,7 +549,10 @@ export const resolvers = {
       });
     },
     views: async (p: PgNamespace, args: any, ctx: ReqContext): Promise<any> => {
-      const items = await ctx.resolveClasses(c => c.relnamespace === p.oid && c.relkind === "v");
+      // Use the classesByNamespaceLoader to efficiently load views
+      const items = await ctx.classesByNamespaceLoader.load({ namespaceOid: p.oid, relkind: "v" });
+      
+      // Apply pagination
       return paginate(items, {
         first: args.first,
         after: args.after,
@@ -552,7 +560,10 @@ export const resolvers = {
       });
     },
     materializedViews: async (p: PgNamespace, args: any, ctx: ReqContext): Promise<any> => {
-      const items = await ctx.resolveClasses(c => c.relnamespace === p.oid && c.relkind === "m");
+      // Use the classesByNamespaceLoader to efficiently load materialized views
+      const items = await ctx.classesByNamespaceLoader.load({ namespaceOid: p.oid, relkind: "m" });
+      
+      // Apply pagination
       return paginate(items, {
         first: args.first,
         after: args.after,

@@ -58,6 +58,38 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     });
   });
   
+  // Add classByNameLoader
+  const classByNameLoader = new DataLoader<
+    { schema: string, name: string }, 
+    PgClass | null
+  >(async (keys) => {
+    return keys.map(key => {
+      const namespace = namespaces.find(n => n.nspname === key.schema);
+      if (!namespace) return null;
+      
+      const cls = classes.find(c => 
+        c.relnamespace === namespace.oid && 
+        c.relname === key.name
+      );
+      return cls || null;
+    });
+  });
+  
+  // Add classesByNamespaceLoader
+  const classesByNamespaceLoader = new DataLoader<
+    { namespaceOid: number, relkind?: string },
+    PgClass[]
+  >(async (keys) => {
+    return keys.map(key => {
+      const filteredClasses = classes.filter(c => {
+        if (c.relnamespace !== key.namespaceOid) return false;
+        if (key.relkind && c.relkind !== key.relkind) return false;
+        return true;
+      });
+      return filteredClasses;
+    });
+  });
+  
   const attributeLoader = new DataLoader<number, PgAttribute[] | null>(async (keys) => {
     return keys.map(key => {
       const attrs = attributes.filter(a => a.attrelid === key);
@@ -105,6 +137,8 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     namespaceLoader,
     namespaceByNameLoader,
     classLoader,
+    classByNameLoader,
+    classesByNamespaceLoader,
     attributeLoader,
     triggerLoader,
     policyLoader,

@@ -25,6 +25,7 @@ import {
 import pg from "pg";
 import DataLoader from "dataloader";
 import { createNamespaceLoaders } from "./loaders/pg_namespaces.js";
+import { createClassLoaders } from "./loaders/pg_classes.js";
 
 /**
  * Helper functions for parsing database rows into typed objects
@@ -357,6 +358,8 @@ export interface ReqContext {
   namespaceLoader: DataLoader<number, PgNamespace | null>;
   namespaceByNameLoader: DataLoader<string, PgNamespace | null>;
   classLoader: DataLoader<number, PgClass | null>;
+  classByNameLoader: DataLoader<{ schema: string, name: string }, PgClass | null>;
+  classesByNamespaceLoader: DataLoader<{ namespaceOid: number, relkind?: string }, PgClass[]>;
   attributeLoader: DataLoader<number, PgAttribute[] | null>;
   triggerLoader: DataLoader<number, PgTrigger[] | null>;
   policyLoader: DataLoader<number, PgPolicy[] | null>;
@@ -440,15 +443,14 @@ export async function context(
     // Create namespace loaders
     const namespaceLoaders = createNamespaceLoaders(client);
     
+    // Create class loaders
+    const classLoaders = createClassLoaders(client);
+    
     // Use namespace loaders to implement resolveNamespaces
     const resolveNamespaces = namespaceLoaders.getAllNamespaces;
     
-    const resolveClasses = async (filter?: (cls: PgClass) => boolean) => {
-      if (!dataSources.classes) {
-        dataSources.classes = await queries.classes(client);
-      }
-      return filter ? dataSources.classes.filter(filter) : dataSources.classes;
-    };
+    // Use class loaders to implement resolveClasses
+    const resolveClasses = classLoaders.getAllClasses;
     
     const resolveAttributes = async (filter?: (attr: PgAttribute) => boolean) => {
       if (!dataSources.attributes) {
@@ -688,7 +690,9 @@ export async function context(
       typeLoader,
       namespaceLoader: namespaceLoaders.namespaceLoader,
       namespaceByNameLoader: namespaceLoaders.namespaceByNameLoader,
-      classLoader,
+      classLoader: classLoaders.classLoader,
+      classByNameLoader: classLoaders.classByNameLoader,
+      classesByNamespaceLoader: classLoaders.classesByNamespaceLoader,
       attributeLoader,
       triggerLoader,
       policyLoader,
