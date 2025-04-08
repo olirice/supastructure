@@ -100,6 +100,7 @@ type Query {
   policy(oid: Int, schemaName: String, name: String, id: ID): Policy
   type(oid: Int, schemaName: String, name: String, id: ID): PgType
   role(oid: Int, name: String, id: ID): Role
+  extension(name: String, id: ID): Extension
   node(id: ID!): Node
 }
 
@@ -126,6 +127,7 @@ type Database implements Node {
   """From pg_database.datname"""
   name: String!
   schemas(first: Int, after: String, orderBy: SchemaOrderBy): SchemaConnection!
+  extensions(first: Int, after: String): ExtensionConnection!
   privileges(roleName: String!): DatabasePrivilege!
 }
 
@@ -571,6 +573,38 @@ enum ForeignKeyAction {
   SET_NULL
   """SET DEFAULT"""
   SET_DEFAULT
+}
+
+type ExtensionConnection {
+  edges: [ExtensionEdge!]!
+  pageInfo: PageInfo!
+  nodes: [Extension!]!
+}
+
+type ExtensionEdge {
+  node: Extension!
+  cursor: String!
+}
+
+"""
+PostgreSQL extension from pg_extension
+"""
+type Extension implements Node {
+  id: ID!
+  """From pg_extension.oid"""
+  oid: Int!
+  """From pg_extension.extname"""
+  name: String!
+  """From pg_available_extension_versions.default_version"""
+  defaultVersion: String!
+  """From pg_available_extensions.comment"""
+  comment: String
+  """Whether the extension is currently installed"""
+  installed: Boolean!
+  """From pg_extension.extversion"""
+  installedVersion: String
+  """Schema containing the extension objects"""
+  schema: Schema
 }
 ```
 
