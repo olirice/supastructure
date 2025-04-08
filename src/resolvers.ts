@@ -8,6 +8,7 @@ import type {
   PgType,
   PgRole,
   PgForeignKey,
+  PgExtension,
 } from "./types.js";
 import { PgEnum, PgIndex, PgForeignKeySchema } from "./types.js";
 import type { ReqContext } from "./context.js";
@@ -368,6 +369,21 @@ export const resolvers = {
           return null;
       }
     },
+
+    extension: async (
+      _p: unknown,
+      args: { name?: string; id?: string },
+      ctx: ReqContext
+    ): Promise<PgExtension | null> => {
+      const fromId = args.id ? decodeId(args.id) : null;
+      if (fromId && fromId.typeName === "Extension") {
+        return ctx.extensionLoader.load(fromId.oid);
+      }
+      if (args.name) {
+        return ctx.extensionByNameLoader.load(args.name);
+      }
+      return null;
+    },
   },
 
   ////////////////////////////////////////
@@ -439,6 +455,15 @@ export const resolvers = {
     nodes: (p: { edges: Array<{ node: PgPolicy }>; first: number }) => p.edges.map((e) => e.node),
   },
 
+  ExtensionConnection: {
+    edges: (p: { edges: Array<{ node: PgExtension }>; first: number; pageInfo: any }) => p.edges,
+    pageInfo: (p: { edges: Array<{ node: PgExtension }>; first: number; pageInfo: any }) => ({
+      ...p.pageInfo,
+    }),
+    nodes: (p: { edges: Array<{ node: PgExtension }>; first: number }) =>
+      p.edges.map((e) => e.node),
+  },
+
   ////////////////////////////////////////
   // Field resolvers: Database, Schema, Table, etc.
   ////////////////////////////////////////
@@ -479,6 +504,14 @@ export const resolvers = {
         role: roles.length > 0 ? roles[0] : null,
         connect: result.rows[0].connect,
       };
+    },
+    extensions: async (p: PgDatabase, args: any, ctx: ReqContext): Promise<any> => {
+      const extensions = await ctx.resolveExtensions();
+      return paginate(extensions, {
+        first: args.first,
+        after: args.after,
+        cursorForNode: (n) => String(n.oid),
+      });
     },
   },
 
@@ -954,6 +987,9 @@ export const resolvers = {
       if (obj.rolname !== undefined) {
         return "Role";
       }
+      if (obj.name && obj.defaultVersion) {
+        return "Extension";
+      }
       return null;
     },
   },
@@ -1014,6 +1050,22 @@ export const resolvers = {
     }),
     nodes: (p: { edges: Array<{ node: PgForeignKey }>; first: number }) =>
       p.edges.map((e) => e.node),
+  },
+
+  Extension: {
+    id: (p: PgExtension) => buildGlobalId("Extension", p.oid || 0),
+    oid: (p: PgExtension) => p.oid || 0,
+    name: (p: PgExtension) => p.name,
+    defaultVersion: (p: PgExtension) => p.defaultVersion,
+    comment: (p: PgExtension) => p.comment,
+    installed: (p: PgExtension) => p.installed,
+    installedVersion: (p: PgExtension) => p.installedVersion,
+    schema: async (p: PgExtension, _a: any, ctx: ReqContext): Promise<any> => {
+      if (p.schemaOid) {
+        return ctx.namespaceLoader.load(p.schemaOid);
+      }
+      return null;
+    },
   },
 };
 

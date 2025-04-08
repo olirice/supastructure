@@ -2894,7 +2894,6 @@ describe("GraphQL Server - Transactional Tests", () => {
     await client.query("create schema test_schema;");
     await client.query("create table test_schema.table1 (id serial primary key);");
     await client.query("create table test_schema.table2 (id serial primary key);");
-
     const { data, errors } = await executeTestQuery(
       testServer,
       `
@@ -4295,10 +4294,10 @@ describe("GraphQL Server - Transactional Tests", () => {
   // TEST: Sort Schemas by Name
   // =====================================
   it("sorts schemas by name", async () => {
+    await client.query("drop schema public cascade;");
     await client.query("create schema schema_a;");
     await client.query("create schema schema_b;");
     await client.query("create schema schema_c;");
-    await client.query("drop schema if exists public;");
 
     const { data, errors } = await executeTestQuery(
       testServer,
@@ -4876,4 +4875,138 @@ describe("GraphQL Server - Transactional Tests", () => {
       });
     }
   });
+
+  // =====================================
+  // TEST: Extension queries
+  // =====================================
+  describe("Extension queries", () => {
+    it("fetches extensions connection from database", async () => {
+      const { data, errors } = await executeTestQuery(
+        testServer,
+        `
+          query {
+            database {
+              extensions(first: 10) {
+                nodes {
+                  name
+                  defaultVersion
+                  installed
+                  installedVersion
+                  comment
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          }
+        `,
+        {},
+        client
+      );
+      
+      expect(errors).toBeUndefined();
+      
+      // Verify structure
+      expect(data).toMatchObject({
+        database: expect.objectContaining({
+          extensions: expect.objectContaining({
+            nodes: expect.any(Array),
+            pageInfo: expect.any(Object),
+          }),
+        }),
+      });
+      
+      // There should be at least some extensions available
+      const database = data?.database as any;
+      const nodes = database?.extensions?.nodes || [];
+      expect(nodes.length).toBeGreaterThan(0);
+      
+      // At least one extension should have a name
+      expect(nodes.some((ext: any) => ext.name)).toBeTruthy();
+    });
+
+    it("fetches a single extension by name", async () => {
+      // Create a test extension
+      await client.query(`
+        CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+      `);
+
+      const { data, errors } = await executeTestQuery(
+        testServer,
+        `
+          query {
+            extension(name: "pg_stat_statements") {
+              id
+              oid
+              name
+              defaultVersion
+              installed
+              installedVersion
+            }
+          }
+        `,
+        {},
+        client
+      );
+      
+      expect(errors).toBeUndefined();
+      
+      // Verify structure and content
+      expect(data).toHaveProperty('extension');
+      expect(data?.extension).toMatchObject({
+        name: "pg_stat_statements",
+        installed: true,
+      });
+    });
+  });
+
+  describe("Non-installed extension queries", () => {
+    test("should return info for a non-installed extension", async () => {
+      // Mock a situation where pg_stat_statements is not installed (disable it temporarily)
+      await client.query(`DROP EXTENSION IF EXISTS pg_stat_statements;`);
+      
+      const { data, errors } = await executeTestQuery(
+        testServer,
+        `
+          query {
+            extension(name: "pg_stat_statements") {
+              name
+              defaultVersion
+              installed
+              installedVersion
+              comment
+            }
+          }
+        `,
+        {},
+        client
+      );
+      
+      expect(errors).toBeUndefined();
+      
+      // Verify structure and content - the extension should exist but not be installed
+      expect(data).toHaveProperty('extension');
+      
+      const extension = data?.extension as {
+        name: string;
+        defaultVersion: string;
+        installed: boolean;
+        installedVersion: string | null;
+        comment: string | null;
+      };
+      
+      expect(extension).toMatchObject({
+        name: "pg_stat_statements",
+        installed: false,
+        installedVersion: null,
+      });
+      
+      // Should have a default version and comment since it's available
+      expect(extension.defaultVersion).toBeTruthy();
+      expect(extension.comment).toBeTruthy();
+    });
+  });
 });
+

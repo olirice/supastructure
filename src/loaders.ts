@@ -10,6 +10,7 @@ import { createEnumLoaders } from "./loaders/pg_enums.js";
 import { createIndexLoaders } from "./loaders/pg_indexes.js";
 import { createRoleLoaders } from "./loaders/pg_roles.js";
 import { createForeignKeyLoaders } from "./loaders/pg_foreign_keys.js";
+import { createExtensionLoaders } from "./loaders/pg_extensions.js";
 import type {
   PgDatabase,
   PgNamespace,
@@ -22,6 +23,7 @@ import type {
   PgIndex,
   PgRole,
   PgForeignKey,
+  PgExtension,
 } from "./types.js";
 
 interface DataSources {
@@ -36,6 +38,7 @@ interface DataSources {
   indexes?: PgIndex[];
   roles?: PgRole[];
   foreignKeys?: PgForeignKey[];
+  extensions?: PgExtension[];
 }
 
 // Type guard functions for data sources
@@ -79,6 +82,10 @@ function hasForeignKeys(ds: DataSources): ds is DataSources & { foreignKeys: PgF
   return !!ds.foreignKeys;
 }
 
+function hasExtensions(ds: DataSources): ds is DataSources & { extensions: PgExtension[] } {
+  return !!ds.extensions;
+}
+
 /**
  * Creates all DataLoaders for PostgreSQL database entities.
  * Centralizes loader creation logic in one place for better organization.
@@ -114,6 +121,9 @@ export function createLoaders(client: Client | PoolClient): {
     foreignKeyLoader: DataLoader<number, PgForeignKey | null>;
     foreignKeysByRelationLoader: DataLoader<number, PgForeignKey[]>;
     foreignKeysByReferencedRelationLoader: DataLoader<number, PgForeignKey[]>;
+    extensionLoader: DataLoader<number, PgExtension | null>;
+    extensionByNameLoader: DataLoader<string, PgExtension | null>;
+    extensionsBySchemaLoader: DataLoader<number, PgExtension[]>;
   };
   resolvers: {
     resolveNamespaces: (filter?: (ns: PgNamespace) => boolean) => Promise<PgNamespace[]>;
@@ -126,6 +136,7 @@ export function createLoaders(client: Client | PoolClient): {
     resolveIndexes: (filter?: (index: PgIndex) => boolean) => Promise<PgIndex[]>;
     resolveRoles: (filter?: (role: PgRole) => boolean) => Promise<PgRole[]>;
     resolveForeignKeys: (filter?: (fk: PgForeignKey) => boolean) => Promise<PgForeignKey[]>;
+    resolveExtensions: (filter?: (ext: PgExtension) => boolean) => Promise<PgExtension[]>;
   };
   dataSources: DataSources;
 } {
@@ -161,6 +172,9 @@ export function createLoaders(client: Client | PoolClient): {
 
   // Create foreign key loaders
   const foreignKeyLoaders = createForeignKeyLoaders(client);
+
+  // Create extension loaders
+  const extensionLoaders = createExtensionLoaders(client);
 
   // Create resolver functions with type-safe data source access
   const resolvers = {
@@ -303,6 +317,20 @@ export function createLoaders(client: Client | PoolClient): {
 
       return filter ? foreignKeys.filter(filter) : foreignKeys;
     },
+
+    // Extensions resolver with caching
+    resolveExtensions: async (filter?: (ext: PgExtension) => boolean) => {
+      if (hasExtensions(dataSources) && !filter) {
+        return dataSources.extensions;
+      }
+
+      const extensions = await extensionLoaders.getAllExtensions();
+      if (!filter) {
+        dataSources.extensions = extensions;
+      }
+
+      return filter ? extensions.filter(filter) : extensions;
+    },
   };
 
   // Collect all loaders in a flat structure
@@ -348,6 +376,11 @@ export function createLoaders(client: Client | PoolClient): {
     foreignKeyLoader: foreignKeyLoaders.foreignKeyLoader,
     foreignKeysByRelationLoader: foreignKeyLoaders.foreignKeysByRelationLoader,
     foreignKeysByReferencedRelationLoader: foreignKeyLoaders.foreignKeysByReferencedRelationLoader,
+
+    // Extension loaders
+    extensionLoader: extensionLoaders.extensionLoader,
+    extensionByNameLoader: extensionLoaders.extensionByNameLoader,
+    extensionsBySchemaLoader: extensionLoaders.extensionsBySchemaLoader,
   };
 
   return { loaders, resolvers, dataSources };

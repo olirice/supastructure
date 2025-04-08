@@ -96,3 +96,16 @@ export const PgForeignKeySchema = z.object({
   confdeltype: z.string(),
 });
 export type PgForeignKey = z.infer<typeof PgForeignKeySchema>;
+
+export const PgExtensionSchema = z.object({
+  oid: z.number().int().nullable().optional(),
+  name: z.string(),
+  defaultVersion: z.string(),
+  comment: z.string().nullable().optional(),
+  relocatable: z.boolean().nullable().optional(),
+  trusted: z.boolean().nullable().optional(),
+  installed: z.boolean(),
+  installedVersion: z.string().nullable().optional(),
+  schemaOid: z.number().int().nullable().optional(),
+});
+export type PgExtension = z.infer<typeof PgExtensionSchema>;
