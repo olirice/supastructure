@@ -97,10 +97,7 @@ export const extensionQueries = {
   /**
    * Get extensions by schema OID
    */
-  async bySchemaOid(
-    client: pg.Client | pg.PoolClient,
-    schemaOid: number
-  ): Promise<PgExtension[]> {
+  async bySchemaOid(client: pg.Client | pg.PoolClient, schemaOid: number): Promise<PgExtension[]> {
     return this.query(client, { schemaOids: [schemaOid] });
   },
 };
@@ -183,4 +180,4 @@ export function createExtensionLoaders(client: pg.Client | pg.PoolClient) {
     extensionsBySchemaLoader,
     getAllExtensions,
   };
-} 
+}

@@ -4905,9 +4905,9 @@ describe("GraphQL Server - Transactional Tests", () => {
         {},
         client
       );
-      
+
       expect(errors).toBeUndefined();
-      
+
       // Verify structure
       expect(data).toMatchObject({
         database: expect.objectContaining({
@@ -4917,12 +4917,12 @@ describe("GraphQL Server - Transactional Tests", () => {
           }),
         }),
       });
-      
+
       // There should be at least some extensions available
       const database = data?.database as any;
       const nodes = database?.extensions?.nodes || [];
       expect(nodes.length).toBeGreaterThan(0);
-      
+
       // At least one extension should have a name
       expect(nodes.some((ext: any) => ext.name)).toBeTruthy();
     });
@@ -4950,11 +4950,11 @@ describe("GraphQL Server - Transactional Tests", () => {
         {},
         client
       );
-      
+
       expect(errors).toBeUndefined();
-      
+
       // Verify structure and content
-      expect(data).toHaveProperty('extension');
+      expect(data).toHaveProperty("extension");
       expect(data?.extension).toMatchObject({
         name: "pg_stat_statements",
         installed: true,
@@ -4966,7 +4966,7 @@ describe("GraphQL Server - Transactional Tests", () => {
     test("should return info for a non-installed extension", async () => {
       // Mock a situation where pg_stat_statements is not installed (disable it temporarily)
       await client.query(`DROP EXTENSION IF EXISTS pg_stat_statements;`);
-      
+
       const { data, errors } = await executeTestQuery(
         testServer,
         `
@@ -4983,12 +4983,12 @@ describe("GraphQL Server - Transactional Tests", () => {
         {},
         client
       );
-      
+
       expect(errors).toBeUndefined();
-      
+
       // Verify structure and content - the extension should exist but not be installed
-      expect(data).toHaveProperty('extension');
-      
+      expect(data).toHaveProperty("extension");
+
       const extension = data?.extension as {
         name: string;
         defaultVersion: string;
@@ -4996,17 +4996,16 @@ describe("GraphQL Server - Transactional Tests", () => {
         installedVersion: string | null;
         comment: string | null;
       };
-      
+
       expect(extension).toMatchObject({
         name: "pg_stat_statements",
         installed: false,
         installedVersion: null,
       });
-      
+
       // Should have a default version and comment since it's available
       expect(extension.defaultVersion).toBeTruthy();
       expect(extension.comment).toBeTruthy();
     });
   });
 });
-

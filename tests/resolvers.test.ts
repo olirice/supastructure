@@ -322,9 +322,7 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
       ),
     resolveExtensions: jest
       .fn()
-      .mockImplementation((filter?: any) => 
-        Promise.resolve(filter ? [] : [])
-      ),
+      .mockImplementation((filter?: any) => Promise.resolve(filter ? [] : [])),
     typeLoader,
     typeByNameLoader,
     namespaceLoader,
