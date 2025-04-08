@@ -12,6 +12,7 @@ import type {
   PgIndex,
   PgRole,
   PgForeignKey,
+  PgExtension,
 } from "./types.js";
 import { PgDatabaseSchema } from "./types.js";
 import { createLoaders } from "./loaders.js";
@@ -39,6 +40,7 @@ export interface ReqContext {
   resolveIndexes: (filter?: (index: PgIndex) => boolean) => Promise<PgIndex[]>;
   resolveRoles: (filter?: (role: PgRole) => boolean) => Promise<PgRole[]>;
   resolveForeignKeys: (filter?: (fk: PgForeignKey) => boolean) => Promise<PgForeignKey[]>;
+  resolveExtensions: (filter?: (ext: PgExtension) => boolean) => Promise<PgExtension[]>;
 
   /**
    * DataLoaders for efficient batched SQL queries
@@ -69,6 +71,9 @@ export interface ReqContext {
   foreignKeyLoader: DataLoader<number, PgForeignKey | null>;
   foreignKeysByRelationLoader: DataLoader<number, PgForeignKey[]>;
   foreignKeysByReferencedRelationLoader: DataLoader<number, PgForeignKey[]>;
+  extensionLoader: DataLoader<number, PgExtension | null>;
+  extensionByNameLoader: DataLoader<string, PgExtension | null>;
+  extensionsBySchemaLoader: DataLoader<number, PgExtension[]>;
 
   /**
    * Cached data sources to avoid redundant queries
@@ -86,6 +91,7 @@ export interface ReqContext {
     indexes?: PgIndex[];
     roles?: PgRole[];
     foreignKeys?: PgForeignKey[];
+    extensions?: PgExtension[];
   };
 
   /**

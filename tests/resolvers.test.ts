@@ -11,6 +11,7 @@ import type {
   PgEnum,
   PgIndex,
   PgForeignKey,
+  PgExtension,
 } from "../src/types.js";
 import DataLoader from "dataloader";
 
@@ -260,6 +261,19 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     }
   );
 
+  // Create extension loaders
+  const extensionLoader = new DataLoader<number, PgExtension | null>(async (keys) => {
+    return keys.map((key) => null);
+  });
+
+  const extensionByNameLoader = new DataLoader<string, PgExtension | null>(async (keys) => {
+    return keys.map((key) => null);
+  });
+
+  const extensionsBySchemaLoader = new DataLoader<number, PgExtension[]>(async (keys) => {
+    return keys.map((key) => []);
+  });
+
   return {
     resolveDatabase: jest.fn().mockResolvedValue(database),
     resolveNamespaces: jest
@@ -306,6 +320,9 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
       .mockImplementation((filter?: any) =>
         Promise.resolve(filter ? foreignKeys.filter(filter) : foreignKeys)
       ),
+    resolveExtensions: jest
+      .fn()
+      .mockImplementation((filter?: any) => Promise.resolve(filter ? [] : [])),
     typeLoader,
     typeByNameLoader,
     namespaceLoader,
@@ -328,6 +345,9 @@ function createTestContext(overrides: Partial<ReqContext> = {}): ReqContext {
     foreignKeyLoader,
     foreignKeysByRelationLoader,
     foreignKeysByReferencedRelationLoader,
+    extensionLoader,
+    extensionByNameLoader,
+    extensionsBySchemaLoader,
     dataSources,
     client: {
       query: jest.fn().mockResolvedValue({ rows: [] }),
